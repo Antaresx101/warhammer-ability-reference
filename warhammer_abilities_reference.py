@@ -80,7 +80,7 @@ def categorize_abilities(abilities):
 
     return phases
 
-def generate_html_report(categorized_abilities):
+def generate_html_report(categorized_abilities, original_filename):
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -317,7 +317,7 @@ def generate_html_report(categorized_abilities):
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "warhammer_abilities_reference_reordered.html";
+                    a.download = "{filename}";
                     document.body.appendChild(a);
                     a.click();
                     setTimeout(() => {{
@@ -366,7 +366,9 @@ def generate_html_report(categorized_abilities):
 
         phase_html += '</div>\n'
 
-    return html_template.format(content=phase_html), abilities_valid
+    # Use the original filename for the download
+    download_filename = f"{original_filename}_reordered.html"
+    return html_template.format(content=phase_html, filename=download_filename), abilities_valid
 
 def main():
     st.title("Warhammer 40k Ability Reference Generator")
@@ -385,8 +387,8 @@ def main():
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         html_content = stringio.read()
 
-        uploaded_filename = uploaded_file.name.split('.')[0]
-        download_filename = f"{uploaded_filename}_reference.html"
+        # Get the original filename without extension
+        original_filename = uploaded_file.name.split('.')[0]
 
         with st.spinner("Processing HTML file..."):
             parser = AbilityParser()
@@ -394,14 +396,14 @@ def main():
             abilities = parser.abilities
 
             categorized = categorize_abilities(abilities)
-            html_report, abilities_valid = generate_html_report(categorized)
+            html_report, abilities_valid = generate_html_report(categorized, original_filename)
 
             st.success(f"Extraction complete.")
             
             st.download_button(
                 label="Download Reorderable HTML",
                 data=html_report,
-                file_name=download_filename,
+                file_name=f"{original_filename}_reordered.html",
                 mime="text/html"
             )
             
