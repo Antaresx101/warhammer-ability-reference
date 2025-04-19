@@ -1,2 +1,3 @@
 Simple Streamlit app to convert your New Recruit exports to a sortable list of abilites/rules per battleround phases.
-In New Recruit, export an html with Export -> "Pretty" or Export -> Templates -> "Pretty Cards" and upload to the Streamlit app.
+Find it here:
+https://warhammer-ability-reference-6ifsas4undsg23z3oguurk.streamlit.app/
