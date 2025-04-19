@@ -118,7 +118,7 @@ def generate_html_report(categorized_abilities):
                 margin-bottom: 15px;
                 padding: 10px;
                 border-left: 4px solid rgb(41, 128, 185);
-                background-color: rgb(237, 237, 255);
+                background-color: rgb(240, 240, 250);
                 transition: all 0.2s ease;
             }}
             .ability:hover {{
@@ -135,7 +135,7 @@ def generate_html_report(categorized_abilities):
                 color: rgb(25, 25, 103);
             }} 
             .ability-desc {{
-                color: rgb(35, 35, 144);
+                color: rgb(25, 25, 125);
             }}
             .ability.dragging {{
                 opacity: 0.5;
@@ -145,10 +145,10 @@ def generate_html_report(categorized_abilities):
                 display: block;
                 margin: 20px auto;
                 padding: 10px 20px;
-                background-color: rgb(100, 150, 255);
-                color: rgb(255, 255, 255);
-                border: 2px solid rgb(100, 100, 255);
-                border-radius: 4px;
+                background-color: rgb(240, 240, 255);
+                color: rgb(50, 50, 25);
+                border: 1px solid rgb(100, 100, 255);
+                border-radius: 3px;
                 font-size: 16px;
                 cursor: pointer;
                 transition: background-color 0.2s;
