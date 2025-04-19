@@ -52,21 +52,21 @@ class AbilityParser(HTMLParser):
 
 def categorize_abilities(abilities):
     phases = {
-        "Any Phase / Other": [],
-        "Command Phase": [],
-        "Movement Phase": [],
-        "Shooting Phase": [],
-        "Charge Phase": [],
-        "Fight Phase": [],
+        "ANY PHASE / OTHER": [],
+        "COMMAND PHASE": [],
+        "MOVEMENT PHASE": [],
+        "SHOOTING PHASE": [],
+        "CHARGE PHASE": [],
+        "FIGHT PHASE": [],
     }
 
     phase_keywords = {
-        "Fight Phase": ["fight phase", "weapon skill"],
-        "Charge Phase": ["charge phase", "charge roll", "charge move"],
-        "Shooting Phase": ["shoot", "shooting phase"],
-        "Movement Phase": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
-        "Command Phase": ["start of your turn", "start of any turn", "start of the battleround", "command phase", "order", "battle-shock step", "battleshock step"],
-        "Any Phase / Other": ["any phase", "battle-shock test", "battleshock test", "reserves", "redeploy"]
+        "FIGHT PHASE": ["fights", "fight phase", "weapon skill"],
+        "CHARGE PHASE": ["charge phase", "charge roll", "charge move"],
+        "SHOOTING PHASE": ["shoot", "shooting phase"],
+        "MOVEMENT PHASE": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
+        "COMMAND PHASE": ["start of your turn", "start of any turn", "start of the battleround", "command phase", "order", "battle-shock step", "battleshock step"],
+        "ANY PHASE / OTHER": ["any phase", "battle-shock test", "battleshock test", "reserves", "redeploy"]
     }
 
     for ability, description in abilities:
@@ -110,7 +110,7 @@ def generate_html_report(categorized_abilities, original_filename):
             }}
             
             h2 {{
-                color: rgb(35, 35, 144);
+                color: rgb(204, 0, 100);
                 border-bottom: 2px solid rgb(41, 128, 185);
                 padding-bottom: 5px; 
                 font-size: clamp(1.2rem, 4vw, 1.5rem);
