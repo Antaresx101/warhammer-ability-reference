@@ -85,6 +85,7 @@ def generate_html_report(categorized_abilities):
     <!DOCTYPE html>
     <html>
     <head>
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Warhammer 40k Ability Reference Extractor</title>
         <style>
@@ -214,15 +215,16 @@ def generate_html_report(categorized_abilities):
                 border: none;
                 color: rgb(180, 180, 180);
                 cursor: pointer;
-                font-size: 14px;
-                width: 20px;
-                height: 20px;
+                font-size: 18px;
+                width: 24px;
+                height: 24px;
                 border-radius: 50%;
                 opacity: 0;
                 transition: all 0.2s;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                font-family: Arial, sans-serif;
             }}
             
             .delete-btn:hover {{
@@ -354,7 +356,7 @@ def generate_html_report(categorized_abilities):
             ability_name = ability.split(":")[1].strip()
 
             phase_html += f'<div class="ability">\n'
-            phase_html += f'<button class="delete-btn" title="Remove ability">×</button>\n'
+            phase_html += f'<button class="delete-btn" title="Remove ability">&#10005;</button>\n'
             phase_html += f'<div class="unit-name">{unit_name}</div>\n'
             phase_html += f'<div class="ability-name">{ability_name}</div>\n'
             phase_html += f'<div class="ability-desc">{description}</div>\n'
