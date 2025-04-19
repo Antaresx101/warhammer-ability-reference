@@ -85,65 +85,113 @@ def generate_html_report(categorized_abilities):
     <!DOCTYPE html>
     <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Warhammer 40k Ability Reference Extractor</title>
         <style>
+            /* Base Styles */
             body {{
                 font-family: Arial, sans-serif; 
-                margin: 20px; 
+                margin: 10px; 
                 background-color: rgb(250, 250, 255);
+                font-size: 16px;
+                line-height: 1.4;
+                word-wrap: break-word;
             }}
+            
+            /* Responsive Typography */
             h1 {{
                 color: rgb(25, 25, 103);
                 text-align: center;
                 border-bottom: 2px solid rgb(41, 128, 185);
-                padding-bottom: 10px;
+                padding-bottom: 8px;
+                font-size: clamp(1.5rem, 5vw, 2rem);
+                margin: 15px 0;
             }}
+            
             h2 {{
                 color: rgb(35, 35, 144);
                 border-bottom: 2px solid rgb(41, 128, 185);
                 padding-bottom: 5px; 
+                font-size: clamp(1.2rem, 4vw, 1.5rem);
                 user-select: none;
                 pointer-events: none;
             }}
+            
+            /* Mobile-First Layout */
             .phase-section {{
                 background-color: rgb(245, 245, 255);
                 border-radius: 8px;
-                padding: 15px;
-                margin-bottom: 20px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                padding: 12px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 border-left: 4px solid rgb(52, 152, 219);
             }}
+            
             .ability {{
                 position: relative;
-                margin-bottom: 15px;
+                margin-bottom: 12px;
                 padding: 10px;
                 border-left: 4px solid rgb(41, 128, 185);
                 background-color: rgb(240, 240, 250);
                 transition: all 0.2s ease;
+                overflow-wrap: break-word;
             }}
-            .ability:hover {{
-                background-color: rgb(250, 250, 255);
+            
+            .unit-name {{
+                font-weight: bold;
+                color: rgb(25, 25, 103);
+                font-size: clamp(1rem, 3.5vw, 1.1rem);
             }}
+            
             .ability-name {{
                 font-weight: normal;
                 font-style: italic;
                 color: rgb(30, 30, 205);
-                margin: 5px 0px;
-            }} 
-            .unit-name {{
-                font-weight: bold;
-                color: rgb(25, 25, 103);
-            }} 
+                margin: 5px 0;
+                font-size: clamp(0.95rem, 3.5vw, 1.05rem);
+            }}
+            
             .ability-desc {{
                 color: rgb(25, 25, 125);
+                font-size: clamp(0.9rem, 3.2vw, 1rem);
+                line-height: 1.5;
             }}
+            
+            /* Mobile-Specific Adjustments */
+            @media (max-width: 600px) {{
+                body {{
+                    margin: 8px;
+                    font-size: 14px;
+                }}
+                
+                .phase-section {{
+                    padding: 10px;
+                }}
+                
+                .ability {{
+                    padding: 8px;
+                    margin-bottom: 10px;
+                }}
+                
+                #save-button {{
+                    padding: 8px 16px;
+                    font-size: 14px;
+                }}
+            }}
+            
+            /* Existing interactive styles */
+            .ability:hover {{
+                background-color: rgb(250, 250, 255);
+            }}
+            
             .ability.dragging {{
                 opacity: 0.5;
                 background-color: rgb(250, 250, 255);
             }}
+            
             #save-button {{
                 display: block;
-                margin: 20px auto;
+                margin: 15px auto;
                 padding: 10px 20px;
                 background-color: rgb(240, 240, 255);
                 color: rgb(50, 50, 25);
@@ -153,9 +201,11 @@ def generate_html_report(categorized_abilities):
                 cursor: pointer;
                 transition: background-color 0.2s;
             }}
+            
             #save-button:hover {{
                 background-color: rgb(150, 200, 255);
             }}
+            
             .delete-btn {{
                 position: absolute;
                 top: 5px;
@@ -174,10 +224,12 @@ def generate_html_report(categorized_abilities):
                 align-items: center;
                 justify-content: center;
             }}
+            
             .delete-btn:hover {{
                 color: rgb(255, 255, 255);
                 background-color: rgb(200, 0, 0);
             }}
+            
             .ability:hover .delete-btn {{
                 opacity: 1;
             }}
