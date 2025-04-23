@@ -74,7 +74,7 @@ def categorize_abilities(abilities):
         matched = False
 
         for phase, keywords in phase_keywords.items():
-            if any(keyword in desc_lower for keyword in keywords):
+            if any( " " + keyword in desc_lower for keyword in keywords):
                 phases[phase].append((ability, description))
                 break
 
@@ -387,7 +387,6 @@ def main():
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         html_content = stringio.read()
 
-        # Get the original filename without extension
         original_filename = uploaded_file.name.split('.')[0]
 
         with st.spinner("Processing HTML file..."):
