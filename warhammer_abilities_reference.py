@@ -1,10 +1,14 @@
 import subprocess
 import sys
+import streamlit as st
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-install("beautifulsoup4")
+try: from bs4 import BeautifulSoup
+except ImportError:
+    install("beautifulsoup4")
+    from bs4 import BeautifulSoup
 
-import streamlit as st
 from html.parser import HTMLParser
 from bs4 import BeautifulSoup
 import requests
