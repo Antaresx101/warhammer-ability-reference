@@ -1,5 +1,7 @@
 import streamlit as st
 from html.parser import HTMLParser
+from bs4 import BeautifulSoup
+import requests
 import re
 from io import StringIO
 
@@ -50,7 +52,7 @@ class AbilityParser(HTMLParser):
                 self.current_ability = ""
                 self.current_description = ""
 
-def categorize_abilities(abilities):
+def categorize_abilities(abilities, stratagems):
     phases = {
         "ANY PHASE / OTHER": [],
         "COMMAND PHASE": [],
@@ -69,9 +71,10 @@ def categorize_abilities(abilities):
         "ANY PHASE / OTHER": ["any phase", "battle-shock test", "battleshock test", "reserves", "redeploy"]
     }
 
+    if stratagems: abilities = stratagems + abilities
+
     for ability, description in abilities:
         desc_lower = description.lower()
-        matched = False
 
         for phase, keywords in phase_keywords.items():
             if any( " " + keyword in desc_lower for keyword in keywords):
@@ -153,6 +156,7 @@ def generate_html_report(categorized_abilities, original_filename):
             }}
             
             .ability-desc {{
+                white-space: pre-line;
                 color: rgb(25, 25, 125);
                 font-size: clamp(0.9rem, 3.2vw, 1rem);
                 line-height: 1.5;
@@ -370,6 +374,33 @@ def generate_html_report(categorized_abilities, original_filename):
     download_filename = f"{original_filename}_reordered.html"
     return html_template.format(content=phase_html, filename=download_filename), abilities_valid
 
+
+def get_detachment_name(html_content):
+    """Extracts detachment name from New Recruit HTML"""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Method 1: Search for specific pattern
+    for div in soup.find_all('div'):
+        if div.text.strip().startswith('• Detachment:'):
+            option_name = div.find('span', class_='option-name')
+            if option_name:
+                return option_name.get_text(strip=True)
+    
+    # Method 2: Alternative search pattern
+    for span in soup.find_all('span'):
+        if span.text.strip() == 'Detachment':
+            next_span = span.find_next('span', class_='option-name')
+            if next_span:
+                return next_span.get_text(strip=True)
+    
+    # Method 3: Fallback to regex search
+    import re
+    match = re.search(r'Detachment.*?option-name">(.*?)<', html_content)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
 def main():
     st.title("Warhammer 40k Ability Reference Generator")
     st.markdown("""
@@ -381,12 +412,84 @@ def main():
     3. Download the reorderable HTML file and open it in a browser
     """)
 
+    url = st.text_input(
+        label="Enter Wahapedia Sub-Faction URL for Stratagem Support:",
+        placeholder="e.g., https://wahapedia.ru/wh40k10ed/factions/space-marines/salamanders"
+    )
+
+    stratagems = []
+
+
+    """ Rules-Extraction """
     uploaded_file = st.file_uploader("Upload New Recruit HTML File", type=['html'])
     
     if uploaded_file is not None:
         stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
         html_content = stringio.read()
 
+
+        detachment_name = get_detachment_name(html_content)
+        if detachment_name:
+            st.subheader(f"Detachment: {detachment_name}")
+        else:
+            st.warning("Can´t find name of detachment.")
+
+        if detachment_name and not url: st.warning("You can add Stratagems by providing the wahapedia.ru page of your army.")
+
+        elif detachment_name:
+            try:
+                st.success(f"Reading data from: {url}")
+
+                response = requests.get(url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for headers
+                header_tag = None
+                for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                    found = soup.find(tag, string=lambda t: t and detachment_name in t)
+                    if found:
+                        header_tag = found
+                        break
+
+                # Get content until the next header of the same type
+                search_CP = ["1CP","2CP","3CP"]
+                ref = []
+                temp = []
+                skip = 0
+
+                for sibling in header_tag.find_next_siblings():
+                    if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:  # Stop at next header
+                        break
+                    
+                    text = sibling.get_text(strip=False).replace("\n\n","\n")
+                    for n, section in enumerate(text.split("\n")):
+                        if n == 0 and section.lower().startswith("stratagems"): section = section[10:]
+
+                        if section.strip() in search_CP:
+                            skip = 2
+                            try: del stratagems[-1][-1]
+                            except: pass
+
+                            ref, nr = temp[-1], -1
+                            while ref.strip() == "":
+                                nr -= 1
+                                ref = temp[nr]
+                            
+                            ref = ["Stratagem: " + ref.strip() + " " + section.strip()]
+                            stratagems.append(ref)
+
+                        elif stratagems and not skip:
+                            stratagems[-1].append(section.replace(".",".\n"))
+                        else: skip -= 1
+
+                        if section.strip() != "": temp.append(section.replace(".",".\n"))
+
+                stratagems = [[x[0],x[1]] for x in stratagems if x]
+            except:
+                if detachment_name and url: st.warning("Stratagems can´t be extracted from the provided URL.")
+
+
+        # Abilities
         original_filename = uploaded_file.name.split('.')[0]
 
         with st.spinner("Processing HTML file..."):
@@ -394,7 +497,7 @@ def main():
             parser.feed(html_content)
             abilities = parser.abilities
 
-            categorized = categorize_abilities(abilities)
+            categorized = categorize_abilities(abilities, stratagems)
             html_report, abilities_valid = generate_html_report(categorized, original_filename)
 
             st.success(f"Extraction complete.")
