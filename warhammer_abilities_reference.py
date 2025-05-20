@@ -445,7 +445,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities):
 
 
 def main():
-    st.title("Automatic Warhammer 40k Ability Reference")
+    st.title("Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
     
