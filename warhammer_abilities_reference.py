@@ -1,97 +1,9 @@
-import subprocess
-import sys
 import streamlit as st
-
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-try: from bs4 import BeautifulSoup
-except ImportError:
-    install("beautifulsoup4")
-    from bs4 import BeautifulSoup
-
-from html.parser import HTMLParser
+import json
 from bs4 import BeautifulSoup
 import requests
 import re
-from io import StringIO
 
-abilities_valid = []
-
-class AbilityParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.in_ability = False
-        self.current_ability = ""
-        self.current_description = ""
-        self.abilities = []
-        self.in_name_cell = False
-        self.in_description_cell = False
-        self.current_unit = ""
-        self.in_unit_header = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "tr" and ("class", "section card-header") in attrs:
-            self.in_unit_header = True
-        if tag == "span" and ("class", "name") in attrs and self.in_unit_header:
-            self.capture_unit_name = True
-        if tag == "td" and ("class", "name cell") in attrs:
-            self.in_name_cell = True
-        elif tag == "td" and ("class", "characteristic small cell data") in attrs:
-            self.in_description_cell = True
-
-    def handle_data(self, data):
-        if hasattr(self, 'capture_unit_name') and self.capture_unit_name:
-            self.current_unit = data.strip()
-            self.capture_unit_name = False
-            self.in_unit_header = False
-        elif self.in_name_cell:
-            self.current_ability = data.strip()
-        elif self.in_description_cell and self.current_ability:
-            clean_data = data.replace("\n", " ").replace("\r", " ")
-            self.current_description += clean_data
-
-    def handle_endtag(self, tag):
-        if tag == "td" and self.in_name_cell:
-            self.in_name_cell = False
-        elif tag == "td" and self.in_description_cell:
-            self.in_description_cell = False
-            if self.current_ability and self.current_description:
-                cleaned_desc = re.sub(r'\s+', ' ', self.current_description).strip()
-                label = f"{self.current_unit}: {self.current_ability.strip()}"
-                self.abilities.append((label, cleaned_desc))
-                self.current_ability = ""
-                self.current_description = ""
-
-def categorize_abilities(abilities, stratagems):
-    phases = {
-        "ANY PHASE / OTHER": [],
-        "COMMAND PHASE": [],
-        "MOVEMENT PHASE": [],
-        "SHOOTING PHASE": [],
-        "CHARGE PHASE": [],
-        "FIGHT PHASE": [],
-    }
-
-    phase_keywords = {
-        "FIGHT PHASE": ["fights", "fight phase", "weapon skill"],
-        "CHARGE PHASE": ["charge phase", "charge roll", "charge move"],
-        "SHOOTING PHASE": ["shoot", "shooting phase"],
-        "MOVEMENT PHASE": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
-        "COMMAND PHASE": ["start of your turn", "start of any turn", "start of the battleround", "command phase", "order", "battle-shock step", "battleshock step"],
-        "ANY PHASE / OTHER": ["any phase", "battle-shock test", "battleshock test", "reserves", "redeploy"]
-    }
-
-    if stratagems: abilities = stratagems + abilities
-
-    for ability, description in abilities:
-        desc_lower = description.lower()
-
-        for phase, keywords in phase_keywords.items():
-            if any( " " + keyword in desc_lower for keyword in keywords):
-                phases[phase].append((ability, description))
-                break
-
-    return phases
 
 def generate_html_report(categorized_abilities, original_filename):
     html_template = """
@@ -360,6 +272,10 @@ def generate_html_report(categorized_abilities, original_filename):
 
     abilities_valid = []
 
+    def bold_flagged_text(text):
+        pattern = r"\*\*\^\^(.*?)\^\^\*\*"
+        return re.sub(pattern, r"<strong>\1</strong>", text)
+
     phase_html = ""
     for phase, abilities in categorized_abilities.items():
         phase_html += f'<div class="phase-section">\n'
@@ -369,163 +285,221 @@ def generate_html_report(categorized_abilities, original_filename):
             unit_name = ability.split(":")[0].strip()
             ability_name = ability.split(":")[1].strip()
 
+            description_bolded = bold_flagged_text(description)
+
             phase_html += f'<div class="ability">\n'
             phase_html += f'<button class="delete-btn" title="Remove ability">&#10005;</button>\n'
             phase_html += f'<div class="unit-name">{unit_name}</div>\n'
             phase_html += f'<div class="ability-name">{ability_name}</div>\n'
-            phase_html += f'<div class="ability-desc">{description}</div>\n'
+            phase_html += f'<div class="ability-desc">{description_bolded}</div>\n'
             phase_html += '</div>\n'
 
             abilities_valid.append([ability, description])
 
         phase_html += '</div>\n'
 
+
     # Use the original filename for the download
     download_filename = f"{original_filename}_reordered.html"
     return html_template.format(content=phase_html, filename=download_filename), abilities_valid
 
 
-def get_detachment_name(html_content):
-    """Extracts detachment name from New Recruit HTML"""
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
-    # Method 1: Search for specific pattern
-    for div in soup.find_all('div'):
-        if div.text.strip().startswith('• Detachment:'):
-            option_name = div.find('span', class_='option-name')
-            if option_name:
-                return option_name.get_text(strip=True)
-    
-    # Method 2: Alternative search pattern
-    for span in soup.find_all('span'):
-        if span.text.strip() == 'Detachment':
-            next_span = span.find_next('span', class_='option-name')
-            if next_span:
-                return next_span.get_text(strip=True)
-    
-    # Method 3: Fallback to regex search
-    import re
-    match = re.search(r'Detachment.*?option-name">(.*?)<', html_content)
-    if match:
-        return match.group(1).strip()
-    return None
+def extract_abilities_from_json(json_data):
+    abilities = []
+    detachment_abilities = []
+    detachment_name = []
+
+    def walk_selections(selections, current_unit=""):
+        for item in selections:
+            name = item.get("name", "")
+            entry_id = item.get("entryId", "")
+
+            # Check for detachment abilities
+            if current_unit.lower() == "detachment" or name.lower() == "detachment":
+                for sub in item.get("selections", []):
+                    detachment_name_instance = sub.get("name", "")
+                    detachment_name.append(detachment_name_instance)
+                    for profile in sub.get("profiles", []):
+                        if profile.get("typeName") == "Abilities":
+                            ability_name = profile.get("name", "").strip()
+                            description = next(
+                                (char.get("$text", "").strip()
+                                 for char in profile.get("characteristics", [])
+                                 if char.get("name") == "Description"),
+                                ""
+                            )
+                            detachment_abilities.append(("DETACHMENT ABILITY: " + ability_name, description))
+                continue  # Skip depth search
+
+            # Normal unit abilities
+            if "profiles" in item:
+                for profile in item["profiles"]:
+                    if profile.get("typeName") == "Abilities":
+                        ability_name = profile.get("name", "").strip()
+                        description = next(
+                            (char.get("$text", "").strip()
+                             for char in profile.get("characteristics", [])
+                             if char.get("name") == "Description"),
+                            ""
+                        )
+                        label = f"{current_unit or name}: {ability_name}"
+                        abilities.append((label, description))
+
+            # Depth search
+            if "selections" in item:
+                walk_selections(item["selections"], current_unit or name)
+
+    for force in json_data["roster"]["forces"]:
+        walk_selections(force["selections"])
+
+    return abilities, detachment_abilities, detachment_name
+
+
+def extract_stratagems_from_waha(stratagems, detachment_name, url):
+    st.success(f"Reading data from: {url}")
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Look for headers
+    header_tag = None
+    for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+        found = soup.find(tag, string=lambda t: t and detachment_name in t)
+        if found:
+            header_tag = found
+            break
+
+    # Get content until the next header of the same type
+    search_CP = ["1CP","2CP","3CP"]
+    ref = []
+    temp = []
+    skip = 0
+
+    for sibling in header_tag.find_next_siblings():
+        if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:  # Stop at next header
+            break
+        
+        text = sibling.get_text(strip=False).replace("\n\n","\n")
+
+        for n, section in enumerate(text.split("\n")):
+            if n == 0 and section.lower().startswith("stratagems"): section = section[10:]
+
+            if section.strip() in search_CP:
+                skip = 2
+                try: del stratagems[-1][-1]
+                except: pass
+
+                ref, nr = temp[-1], -1
+                while ref.strip() == "":
+                    nr -= 1
+                    ref = temp[nr]
+                
+                ref = ["Stratagem: " + ref.strip() + " " + section.strip()]
+                stratagems.append(ref)
+
+            elif stratagems and not skip:
+                stratagems[-1].append(section.replace(".",".\n"))
+            else: skip -= 1
+
+            if section.strip() != "": temp.append(section.replace(".",".\n"))
+
+    stratagems = [[x[0],x[1]] for x in stratagems if x]
+
+
+
+def categorize_abilities(detachment_abilities, stratagems, abilities):
+    phases = {
+        "ANY PHASE": [],
+        "COMMAND PHASE": [],
+        "MOVEMENT PHASE": [],
+        "SHOOTING PHASE": [],
+        "CHARGE PHASE": [],
+        "FIGHT PHASE": [],
+        "OTHER": []
+    }
+
+    phase_keywords = {
+        "FIGHT PHASE": ["fights", "fight phase", "weapon skill", "melee attack", "melee weapon"],
+        "CHARGE PHASE": ["charge phase", "charge roll", "charge move"],
+        "SHOOTING PHASE": ["shoot", "shooting phase", "ranged attack", "ranged weapon"],
+        "MOVEMENT PHASE": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
+        "COMMAND PHASE": ["start of your turn", "start of any turn", "start of the battleround", "command phase", "order", "battle-shock step", "battleshock step"],
+        "ANY PHASE": ["any phase", "battle-shock test", "battleshock test", "makes an attack"]
+    }
+
+    abilities = detachment_abilities + stratagems + abilities
+
+    for ability, description in abilities:
+        desc_lower = description.lower()
+        found = False
+
+        for phase, keywords in phase_keywords.items():
+            if any( " " + keyword in desc_lower for keyword in keywords):
+                phases[phase].append((ability, description))
+                found = True
+                break
+
+        if not found: phases["OTHER"].append((ability, description))
+
+    return phases
 
 
 def main():
-    st.title("Warhammer 40k Ability Reference Generator")
+    st.title("Automatic Warhammer 40k Ability Reference")
     st.markdown("""
-    This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML.
+    This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
     
-    1. Export your roster in New Recruit with Export -> "Pretty" or Export -> Templates -> "Pretty Cards"
-    2. Upload the resulting listname.html here
+    1. Export your roster in New Recruit with Export -> JSON
+    2. Upload the resulting listname.json here
     2. The App will extract and order all unit-abilities (if applicable)
     3. Download the reorderable HTML file and open it in a browser
+    4. Reorder by drag & drop and modify as you wish
+    5. Redownload your modified HTML file
     """)
 
-    url = st.text_input(
-        label="Enter Wahapedia Sub-Faction URL for Stratagem Support:",
-        placeholder="e.g., https://wahapedia.ru/wh40k10ed/factions/space-marines/salamanders"
-    )
+    stratagems, detachment_abilities, detachment_name = [], [], None
 
-    stratagems = []
+    uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
-
-    """ Rules-Extraction """
-    uploaded_file = st.file_uploader("Upload New Recruit HTML File", type=['html'])
-    
     if uploaded_file is not None:
-        stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-        html_content = stringio.read()
+        try:
+            original_filename = uploaded_file.name.split('.')[0]
+            data = json.load(uploaded_file)
+
+            abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
+            for x in detachment_abilities: print(x)
 
 
-        detachment_name = get_detachment_name(html_content)
-        if detachment_name:
-            st.subheader(f"Detachment: {detachment_name}")
-        else:
-            st.warning("Can´t find name of detachment.")
+            if detachment_name:
+                detachment_name = detachment_name[0]
+                st.subheader(f"Detachment: {detachment_name}")
 
-        if detachment_name and not url: st.warning("You can add Stratagems by providing the wahapedia.ru page of your army.")
+                url = st.text_input(
+                    label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
+                    placeholder="e.g., https://wahapedia.ru/wh40k10ed/factions/space-marines")
 
-        elif detachment_name:
-            try:
-                st.success(f"Reading data from: {url}")
+                if url:
+                    try:
+                        extract_stratagems_from_waha(stratagems, detachment_name, url)
+                        stratagems = [[x[0],x[1]] for x in stratagems if x]
+                    except: st.warning("Stratagems can´t be extracted from the provided URL.")
 
-                response = requests.get(url)
-                soup = BeautifulSoup(response.text, 'html.parser')
+            else: st.warning("Can´t find name of detachment.")
 
-                # Look for headers
-                header_tag = None
-                for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                    found = soup.find(tag, string=lambda t: t and detachment_name in t)
-                    if found:
-                        header_tag = found
-                        break
+            with st.spinner("Processing JSON file..."):
 
-                # Get content until the next header of the same type
-                search_CP = ["1CP","2CP","3CP"]
-                ref = []
-                temp = []
-                skip = 0
+                categorized = categorize_abilities(detachment_abilities, stratagems, abilities)
+                html_report, abilities_valid = generate_html_report(categorized, original_filename)
 
-                for sibling in header_tag.find_next_siblings():
-                    if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:  # Stop at next header
-                        break
-                    
-                    text = sibling.get_text(strip=False).replace("\n\n","\n")
-                    for n, section in enumerate(text.split("\n")):
-                        if n == 0 and section.lower().startswith("stratagems"): section = section[10:]
-
-                        if section.strip() in search_CP:
-                            skip = 2
-                            try: del stratagems[-1][-1]
-                            except: pass
-
-                            ref, nr = temp[-1], -1
-                            while ref.strip() == "":
-                                nr -= 1
-                                ref = temp[nr]
-                            
-                            ref = ["Stratagem: " + ref.strip() + " " + section.strip()]
-                            stratagems.append(ref)
-
-                        elif stratagems and not skip:
-                            stratagems[-1].append(section.replace(".",".\n"))
-                        else: skip -= 1
-
-                        if section.strip() != "": temp.append(section.replace(".",".\n"))
-
-                stratagems = [[x[0],x[1]] for x in stratagems if x]
-            except:
-                if detachment_name and url: st.warning("Stratagems can´t be extracted from the provided URL.")
-
-
-        # Abilities
-        original_filename = uploaded_file.name.split('.')[0]
-
-        with st.spinner("Processing HTML file..."):
-            parser = AbilityParser()
-            parser.feed(html_content)
-            abilities = parser.abilities
-
-            categorized = categorize_abilities(abilities, stratagems)
-            html_report, abilities_valid = generate_html_report(categorized, original_filename)
-
-            st.success(f"Extraction complete.")
-            
-            st.download_button(
-                label="Download Reorderable HTML",
-                data=html_report,
-                file_name=f"{original_filename}_reordered.html",
-                mime="text/html"
-            )
-            
-            if abilities_valid:
-                st.markdown("### Preview (first 5 abilities)")
-                for i, (ability, desc) in enumerate(abilities_valid[:5]):
-                    st.markdown(f"**{ability}**")
-                    st.markdown(f"{desc}")
-                    if i < 4:
-                        st.divider()
+                st.success("Extraction from JSON file complete.")
+                
+                st.download_button(
+                    label="Download Reorderable HTML",
+                    data=html_report,
+                    file_name=f"{original_filename}_reordered.html",
+                    mime="text/html")
+        except:
+            st.error("Extraction unsuccessful or data format incompatible.")
 
 if __name__ == "__main__":
     main()
