@@ -104,6 +104,11 @@ def generate_html_report(categorized_abilities, original_filename):
                     padding: 8px 16px;
                     font-size: 14px;
                 }}
+
+                #toggle-entry-btn {{
+                    padding: 8px 16px;
+                    font-size: 14px;
+                }}
             }}
             
             /* Existing interactive styles */
@@ -118,8 +123,8 @@ def generate_html_report(categorized_abilities, original_filename):
             
             #save-button {{
                 display: block;
-                margin: 15px auto;
-                padding: 10px 20px;
+                margin: 10px auto;
+                padding: 5px 10px;
                 background-color: rgb(240, 240, 255);
                 color: rgb(50, 50, 25);
                 border: 1px solid rgb(100, 100, 255);
@@ -132,7 +137,26 @@ def generate_html_report(categorized_abilities, original_filename):
             #save-button:hover {{
                 background-color: rgb(150, 200, 255);
             }}
+
             
+            #toggle-entry-btn {{
+                display: block;
+                margin: 10px auto;
+                padding: 5px 10px;
+                background-color: rgb(240, 240, 255);
+                color: rgb(50, 50, 25);
+                border: 1px solid rgb(100, 100, 255);
+                border-radius: 3px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }}
+            
+            #toggle-entry-btn:hover {{
+                background-color: rgb(150, 200, 255);
+            }}
+        
+
             .delete-btn {{
                 position: absolute;
                 top: 5px;
@@ -161,6 +185,38 @@ def generate_html_report(categorized_abilities, original_filename):
             .ability:hover .delete-btn {{
                 opacity: 1;
             }}
+
+
+            .duplicate-btn {{
+                position: absolute;
+                top: 5px;
+                right: 35px;
+                background: none;
+                border: none;
+                color: rgb(150, 150, 200);
+                cursor: pointer;
+                font-size: 18px;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                opacity: 0;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: Arial, sans-serif;
+            }}
+
+            .duplicate-btn:hover {{
+                color: white;
+                background-color: rgb(0, 123, 255);
+            }}
+
+            .ability:hover .duplicate-btn {{
+                opacity: 1;
+            }}
+
+
             @media print {{
                 body {{ 
                     background-color: rgb(255, 255, 255);
@@ -182,7 +238,7 @@ def generate_html_report(categorized_abilities, original_filename):
                 .ability-desc {{
                     color: rgb(0, 0, 0);
                 }}
-                #save-button, .delete-btn {{ 
+                #save-button, #toggle-entry-btn, .delete-btn, .duplicate-btn {{ 
                     display: none; 
                 }}
             }}
@@ -190,7 +246,113 @@ def generate_html_report(categorized_abilities, original_filename):
     </head>
     <body>
         <h1>Warhammer 40k Ability Reference</h1>
+
         <button id="save-button">Save Current Order</button>
+        <button id="toggle-entry-btn">Add New Entry</button>
+
+        <div id="custom-entry-container" style="display:none; margin-bottom:20px; ...existing styles...">
+
+            <div id="custom-entry" style="
+                margin-bottom: 20px; 
+                padding: 15px; 
+                background: rgb(245, 245, 255); 
+                border: 1px solid rgb(180, 180, 255); 
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
+                max-width: 600px;
+                ">
+                <h2 style="
+                    margin-top: 0; 
+                    color: rgb(204, 0, 100);
+                    font-size: clamp(1.2rem, 4vw, 1.5rem);
+                    user-select: none;
+                    pointer-events: none;
+                    border-bottom: 2px solid rgb(41, 128, 185);
+                    padding-bottom: 5px;
+                ">Add Custom Entry</h2>
+                
+                <label style="display: block; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                    Phase:
+                    <select id="custom-phase" style="
+                        margin-left: 55px; 
+                        padding: 6px 10px; 
+                        font-size: 1rem;
+                        border: 1px solid rgb(100, 100, 255);
+                        border-radius: 4px;
+                        background-color: white;
+                        color: rgb(25, 25, 103);
+                        cursor: pointer;
+                        min-width: 140px;
+                    ">
+                        <option value="ANY PHASE">Any Phase</option>
+                        <option value="MOVEMENT PHASE">Movement Phase</option>
+                        <option value="SHOOTING PHASE">Shooting Phase</option>
+                        <option value="CHARGE PHASE">Charge Phase</option>
+                        <option value="FIGHT PHASE">Fight Phase</option>
+                        <option value="OTHER">Other</option>
+                        
+                    </select>
+                </label>
+
+                <label style="display: flex; align-items: center; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                    Unit Name:
+                    <input type="text" id="custom-unit" style="
+                        margin-left: 28px;
+                        width: calc(100% - 150px);
+                        padding: 6px 8px;
+                        font-size: 1rem;
+                        border: 1px solid rgb(150, 150, 255);
+                        border-radius: 4px;
+                        color: rgb(25, 25, 103);
+                    "/>
+                </label>
+
+                <label style="display: flex; align-items: center; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                    Ability Name:
+                    <input type="text" id="custom-name" style="
+                        margin-left: 10px;
+                        width: calc(100% - 150px);
+                        padding: 6px 8px;
+                        font-size: 1rem;
+                        border: 1px solid rgb(150, 150, 255);
+                        border-radius: 4px;
+                        color: rgb(25, 25, 103);
+                    "/>
+                </label>
+
+                <label style="display: block; margin-bottom: 16px; font-weight: bold; color: rgb(30,30,205);">
+                    Ability Description:<br>
+                    <textarea id="custom-desc" rows="4" style="
+                        width: 100%;
+                        padding: 8px;
+                        font-size: 1rem;
+                        border: 1px solid rgb(150, 150, 255);
+                        border-radius: 4px;
+                        color: rgb(25, 25, 103);
+                        resize: vertical;
+                        font-family: Arial, sans-serif;
+                        margin-top: 4px;
+                        box-sizing: border-box;
+                    "></textarea>
+                </label>
+
+                <button onclick="addCustomAbility()" style="
+                    padding: 10px 20px;
+                    background-color: rgb(240, 240, 255);
+                    color: rgb(50, 50, 25);
+                    border: 1px solid rgb(100, 100, 255);
+                    border-radius: 3px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                    display: block;
+                    margin-top: 5px;
+                " onmouseover="this.style.backgroundColor='rgb(150, 200, 255)';" onmouseout="this.style.backgroundColor='rgb(240, 240, 255)';">
+                    Add Entry
+                </button>
+            </div>
+        </div>
+
         {content}
         <script>
             let dragged;
@@ -210,6 +372,7 @@ def generate_html_report(categorized_abilities, original_filename):
             document.addEventListener("DOMContentLoaded", () => {{
                 // Initialize delete buttons
                 setupDeleteButtons();
+                setupDuplicateButtons();
                 
                 // Drag and drop functionality
                 const allAbilities = document.querySelectorAll(".ability");
@@ -265,6 +428,121 @@ def generate_html_report(categorized_abilities, original_filename):
                     }}
                 }}, {{ offset: Number.NEGATIVE_INFINITY }}).element;
             }}
+
+            function setupDuplicateButtons() {{
+                document.querySelectorAll('.duplicate-btn').forEach(btn => {{
+                    btn.addEventListener('click', (e) => {{
+                        e.stopPropagation();
+                        const ability = e.target.closest('.ability');
+                        const clone = ability.cloneNode(true);
+                        // Re-attach listeners to new buttons
+                        clone.querySelector('.delete-btn').addEventListener('click', (ev) => {{
+                            ev.stopPropagation();
+                            if (confirm('Remove this ability from your reference?')) {{
+                                ev.target.closest('.ability').remove();
+                            }}
+                        }});
+                        clone.querySelector('.duplicate-btn').addEventListener('click', (ev) => {{
+                            ev.stopPropagation();
+                            const abilityAgain = ev.target.closest('.ability');
+                            const cloneAgain = abilityAgain.cloneNode(true);
+                            abilityAgain.after(cloneAgain);
+                            setupDuplicateButtons();
+                            setupDeleteButtons();
+                        }});
+                        ability.after(clone);
+                    }});
+                }});
+            }}
+
+            
+            document.getElementById("toggle-entry-btn").addEventListener("click", () => {{
+                const container = document.getElementById("custom-entry-container");
+                if (container.style.display === "none" || container.style.display === "") {{
+                    container.style.display = "block";
+                    // Optionally change button text to 'Hide Entry Form'
+                    document.getElementById("toggle-entry-btn").textContent = "Hide Add Entry";
+                }} else {{
+                    container.style.display = "none";
+                    document.getElementById("toggle-entry-btn").textContent = "Add New Entry";
+                }}
+            }});
+
+
+            function addCustomAbility() {{
+                const phase = document.getElementById("custom-phase").value;
+                const unit = document.getElementById("custom-unit").value.trim();
+                const name = document.getElementById("custom-name").value.trim();
+                const desc = document.getElementById("custom-desc").value.trim();
+
+                if (!unit || !name || !desc) {{
+                    alert("Please fill in all fields.");
+                    return;
+                }}
+
+                const abilityDiv = document.createElement("div");
+                abilityDiv.className = "ability";
+                abilityDiv.innerHTML = `
+                    <button class="duplicate-btn" title="Duplicate ability">&#128464;</button>
+                    <button class="delete-btn" title="Remove ability">&#10005;</button>
+                    <div class="unit-name">${{unit}}</div>
+                    <div class="ability-name">${{name}}</div>
+                    <div class="ability-desc">${{desc.replace(/\\n/g, "<br>")}}</div>
+                `;
+
+                abilityDiv.setAttribute("draggable", "true");
+                abilityDiv.addEventListener("dragstart", (e) => {{
+                    dragged = e.target;
+                    e.target.classList.add("dragging");
+                }});
+                abilityDiv.addEventListener("dragend", (e) => {{
+                    e.target.classList.remove("dragging");
+                }});
+
+                abilityDiv.querySelector('.delete-btn').addEventListener('click', (e) => {{
+                    e.stopPropagation();
+                    if (confirm('Remove this ability from your reference?')) {{
+                        e.target.closest('.ability').remove();
+                    }}
+                }});
+
+                abilityDiv.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
+                    e.stopPropagation();
+                    const abilityAgain = e.target.closest('.ability');
+                    const cloneAgain = abilityAgain.cloneNode(true);
+
+                    cloneAgain.querySelector('.delete-btn').addEventListener('click', (e) => {{
+                        e.stopPropagation();
+                        if (confirm('Remove this ability from your reference?')) {{
+                            e.target.closest('.ability').remove();
+                        }}
+                    }});
+                    cloneAgain.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
+                        e.stopPropagation();
+                        const abilityAgainAgain = e.target.closest('.ability');
+                        const cloneAgainAgain = abilityAgainAgain.cloneNode(true);
+                        abilityAgainAgain.after(cloneAgainAgain);
+                        setupDuplicateButtons();
+                        setupDeleteButtons();
+                    }});
+
+                    abilityAgain.after(cloneAgain);
+                }});
+
+                const section = [...document.querySelectorAll(".phase-section")].find(s =>
+                    s.querySelector("h2")?.innerText === phase
+                );
+                if (section) {{
+                    section.appendChild(abilityDiv);
+                }} else {{
+                    alert("Phase section not found.");
+                }}
+
+                // Reset fields
+                document.getElementById("custom-unit").value = "";
+                document.getElementById("custom-name").value = "";
+                document.getElementById("custom-desc").value = "";
+            }}
         </script>
     </body>
     </html>
@@ -288,6 +566,7 @@ def generate_html_report(categorized_abilities, original_filename):
             description_bolded = bold_flagged_text(description)
 
             phase_html += f'<div class="ability">\n'
+            phase_html += f'<button class="duplicate-btn" title="Duplicate ability">&#128464;</button>\n'
             phase_html += f'<button class="delete-btn" title="Remove ability">&#10005;</button>\n'
             phase_html += f'<div class="unit-name">{unit_name}</div>\n'
             phase_html += f'<div class="ability-name">{ability_name}</div>\n'
@@ -299,7 +578,6 @@ def generate_html_report(categorized_abilities, original_filename):
         phase_html += '</div>\n'
 
 
-    # Use the original filename for the download
     download_filename = f"{original_filename}_reordered.html"
     return html_template.format(content=phase_html, filename=download_filename), abilities_valid
 
@@ -445,7 +723,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities):
 
 
 def main():
-    st.title("Warhammer 40k Ability Reference")
+    st.title("Automatic Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
     
@@ -467,7 +745,6 @@ def main():
             data = json.load(uploaded_file)
 
             abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
-            for x in detachment_abilities: print(x)
 
 
             if detachment_name:
