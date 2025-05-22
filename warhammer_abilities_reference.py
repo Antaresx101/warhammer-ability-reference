@@ -747,6 +747,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
                 renamed_abilities.append((ability, description))
         
         phases[phase] = renamed_abilities
+        phases[phase].sort(key=lambda x : x[0].split(":")[1].strip())
         phases[phase].sort(key=priority_sort_key)
 
     return phases
