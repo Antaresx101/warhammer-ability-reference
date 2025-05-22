@@ -685,8 +685,9 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
 
 
 
-def categorize_abilities(detachment_abilities, stratagems, abilities):
+def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_abilities):
     phases = {
+        "DEPLOYMENT": [],
         "ANY PHASE": [],
         "COMMAND PHASE": [],
         "MOVEMENT PHASE": [],
@@ -697,27 +698,56 @@ def categorize_abilities(detachment_abilities, stratagems, abilities):
     }
 
     phase_keywords = {
-        "FIGHT PHASE": ["fights", "fight phase", "weapon skill", "melee attack", "melee weapon"],
-        "CHARGE PHASE": ["charge phase", "charge roll", "charge move"],
-        "SHOOTING PHASE": ["shoot", "shooting phase", "ranged attack", "ranged weapon"],
+        "FIGHT PHASE":    ["fight", "fights", "fight phase", "weapon skill", "melee attack", "melee attacks", "melee weapon", "melee weapons", "end of your opponents turn"],
+        "CHARGE PHASE":   ["charge phase", "charge roll", "charge move"],
+        "SHOOTING PHASE": ["shoot", "shooting phase", "ranged attack", "ranged attacks", "ranged weapon", "ranged weapons"],
         "MOVEMENT PHASE": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
-        "COMMAND PHASE": ["start of your turn", "start of any turn", "start of the battleround", "command phase", "order", "battle-shock step", "battleshock step"],
-        "ANY PHASE": ["any phase", "battle-shock test", "battleshock test", "makes an attack"]
+        "COMMAND PHASE":  ["start of your turn", "start of any turn", "start of the battleround", "start of your opponents turn", "command phase", "order", "battle-shock step", "battleshock step"],
+        "ANY PHASE":      ["any phase", "each time", "battle-shock test", "battleshock test", "each timeattack", "attack", "attacks", "weapon", "weapons", "stratagem"],
+        "DEPLOYMENT":     ["reserves", "declare battle formations", "scouts", "infiltrators"]
     }
 
+    priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "end of"]
+    priority_center = len(priority_order) // 2
+
+    def priority_sort_key(s):
+        s = s[1].lower()
+        for i, p in enumerate(priority_order):
+            if p in s: return i
+        return priority_center
+
     abilities = detachment_abilities + stratagems + abilities
+    exclude_abilities = [x.lower() for x in exclude_abilities]
 
     for ability, description in abilities:
-        desc_lower = description.lower()
+        if ability.split(":")[1].lower().strip() in exclude_abilities: continue
+
+        desc_lower = description.lower().replace("  ", " ")
         found = False
 
         for phase, keywords in phase_keywords.items():
+            if found and phase == "ANY PHASE": break
             if any( " " + keyword in desc_lower for keyword in keywords):
                 phases[phase].append((ability, description))
                 found = True
-                break
 
         if not found: phases["OTHER"].append((ability, description))
+
+    for phase in phases:
+        ability_count = {}
+        renamed_abilities = []
+        
+        for ability, description in phases[phase]:
+            if ability in ability_count:
+                ability_count[ability] += 1
+                new_ability = f"{ability_count[ability]}x {ability}"
+                renamed_abilities.append((new_ability, description))
+            else:
+                ability_count[ability] = 1
+                renamed_abilities.append((ability, description))
+        
+        phases[phase] = renamed_abilities
+        phases[phase].sort(key=priority_sort_key)
 
     return phases
 
@@ -737,6 +767,19 @@ def main():
 
     stratagems, detachment_abilities, detachment_name = [], [], None
 
+
+    # Initialize session state
+    if 'abilities' not in st.session_state: st.session_state.abilities = []
+    if 'exclude_abilities' not in st.session_state: st.session_state.exclude_abilities = []
+
+    # Exclude abilities input
+    abilities_input = st.text_area(
+        "Enter abilities to exclude (one per line, e.g. Invulnuverable Save)",
+        height=75)
+
+    if abilities_input: st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
+
+    # File upload processing
     uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
     if uploaded_file is not None:
@@ -765,7 +808,7 @@ def main():
 
             with st.spinner("Processing JSON file..."):
 
-                categorized = categorize_abilities(detachment_abilities, stratagems, abilities)
+                categorized = categorize_abilities(detachment_abilities, stratagems, abilities, st.session_state.exclude_abilities)
                 html_report, abilities_valid = generate_html_report(categorized, original_filename)
 
                 st.success("Extraction from JSON file complete.")
