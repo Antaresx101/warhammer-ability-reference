@@ -698,14 +698,13 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
     }
 
     phase_keywords = {
-        "FIGHT PHASE":    ["fight", "fights", "fight phase", "weapon skill", "melee attack", "melee attacks", "melee weapon", "melee weapons", "end of your opponents turn"],
-        "CHARGE PHASE":   ["charge phase", "charge roll", "charge move"],
-        "SHOOTING PHASE": ["shoot", "shooting phase", "ranged attack", "ranged attacks", "ranged weapon", "ranged weapons"],
-        "MOVEMENT PHASE": ["move", "fallback", "fall back", "advance", "move phase", "movement phase", "deepstrike", "deep strike"],
-        "COMMAND PHASE":  ["start of your turn", "start of any turn", "start of the battleround", "start of your opponents turn", "command phase", "order", "battle-shock step", "battleshock step"],
-        "ANY PHASE":      ["any phase", "each time", "battle-shock test", "battleshock test", "each timeattack", "attack", "attacks", "weapon", "weapons", "stratagem"],
-        "DEPLOYMENT":     ["reserves", "declare battle formations", "scouts", "infiltrators"]
-    }
+        "FIGHT PHASE":    [" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"],
+        "CHARGE PHASE":   [" charge phase", " charge roll", " charge move"],
+        "SHOOTING PHASE": [" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons"],
+        "MOVEMENT PHASE": [" move", " fallback", " fall back", " advance", " move phase", " movement phase", " deepstrike", " deep strike"],
+        "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
+        "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
+        "DEPLOYMENT":     [" reserves", " declare battle formations", " scouts", " infiltrators"]}
 
     priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "end of"]
     priority_center = len(priority_order) // 2
@@ -727,7 +726,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
 
         for phase, keywords in phase_keywords.items():
             if found and phase == "ANY PHASE": break
-            if any( " " + keyword in desc_lower for keyword in keywords):
+            if any( keyword in desc_lower for keyword in keywords):
                 phases[phase].append((ability, description))
                 found = True
 
@@ -735,20 +734,18 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
 
     for phase in phases:
         ability_count = {}
-        renamed_abilities = []
+        renamed_abilities = {}
         
         for ability, description in phases[phase]:
-            if ability in ability_count:
-                ability_count[ability] += 1
-                new_ability = f"{ability_count[ability]}x {ability}"
-                renamed_abilities.append((new_ability, description))
-            else:
-                ability_count[ability] = 1
-                renamed_abilities.append((ability, description))
-        
+            count = ability_count.get(ability, 0) + 1
+            ability_count[ability] = count
+            if count > 1: renamed_abilities[ability] = [str(count) + "x " + ability, description]
+            else: renamed_abilities[ability] = [ability, description]
+
+        renamed_abilities = list(renamed_abilities.values())
+        renamed_abilities.sort(key=lambda x : x[0].split(":")[1].strip())
+        renamed_abilities.sort(key=priority_sort_key)
         phases[phase] = renamed_abilities
-        phases[phase].sort(key=lambda x : x[0].split(":")[1].strip())
-        phases[phase].sort(key=priority_sort_key)
 
     return phases
 
@@ -784,7 +781,7 @@ def main():
     uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
     if uploaded_file is not None:
-        try:
+        if True:
             original_filename = uploaded_file.name.split('.')[0]
             data = json.load(uploaded_file)
 
@@ -819,7 +816,7 @@ def main():
                     data=html_report,
                     file_name=f"{original_filename}_reordered.html",
                     mime="text/html")
-        except:
+        else:
             st.error("Extraction unsuccessful or data format incompatible.")
 
 if __name__ == "__main__":
