@@ -22,6 +22,143 @@ def generate_html_report(categorized_abilities, original_filename):
                 font-size: 16px;
                 line-height: 1.4;
                 word-wrap: break-word;
+                transition: background-color 0.3s, color 0.3s;
+            }}
+            
+            /* Dark Mode Styles */
+            body.dark-mode {{
+                background-color: rgb(30, 30, 40);
+                color: rgb(220, 220, 230);
+            }}
+            
+            body.dark-mode .phase-section {{
+                background-color: rgb(40, 40, 50);
+                border-left: 4px solid rgb(70, 130, 180);
+            }}
+            
+            body.dark-mode .ability {{
+                background-color: rgb(50, 50, 60);
+                border-left: 4px solid rgb(70, 130, 180);
+            }}
+            
+            body.dark-mode .unit-name {{
+                color: rgb(180, 180, 255);
+            }}
+            
+            body.dark-mode .ability-name {{
+                color: rgb(150, 200, 255);
+            }}
+            
+            body.dark-mode .ability-desc {{
+                color: rgb(200, 200, 230);
+            }}
+            
+            body.dark-mode h1 {{
+                color: rgb(180, 180, 255);
+                border-bottom: 2px solid rgb(70, 130, 180);
+            }}
+            
+            body.dark-mode h2 {{
+                color: rgb(255, 100, 150);
+                border-bottom: 2px solid rgb(70, 130, 180);
+            }}
+            
+            /* Custom Entry Form Styles - Light Mode */
+            #custom-entry {{
+                margin-bottom: 20px; 
+                padding: 15px; 
+                background: rgb(245, 245, 255); 
+                border: 1px solid rgb(180, 180, 255); 
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
+                max-width: 600px;
+            }}
+            
+            #custom-entry h2 {{
+                margin-top: 0; 
+                color: rgb(204, 0, 100);
+                font-size: clamp(1.2rem, 4vw, 1.5rem);
+                user-select: none;
+                pointer-events: none;
+                border-bottom: 2px solid rgb(41, 128, 185);
+                padding-bottom: 5px;
+            }}
+            
+            #custom-entry label {{
+                display: block; 
+                margin-bottom: 12px; 
+                font-weight: bold; 
+                color: rgb(30,30,205);
+            }}
+            
+            #custom-entry select,
+            #custom-entry input,
+            #custom-entry textarea {{
+                margin-top: 4px;
+                padding: 6px 8px;
+                font-size: 1rem;
+                border: 1px solid rgb(150, 150, 255);
+                border-radius: 4px;
+                color: rgb(25, 25, 103);
+                background-color: white;
+                width: 100%;
+                box-sizing: border-box;
+            }}
+            
+            #custom-entry textarea {{
+                resize: vertical;
+                font-family: Arial, sans-serif;
+                min-height: 100px;
+            }}
+            
+            #custom-entry button {{
+                padding: 10px 20px;
+                background-color: rgb(240, 240, 255);
+                color: rgb(50, 50, 25);
+                border: 1px solid rgb(100, 100, 255);
+                border-radius: 3px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+                display: block;
+                margin-top: 5px;
+            }}
+            
+            #custom-entry button:hover {{
+                background-color: rgb(150, 200, 255);
+            }}
+            
+            /* Custom Entry Form Styles - Dark Mode */
+            body.dark-mode #custom-entry {{
+                background: rgb(40, 40, 50);
+                border: 1px solid rgb(70, 70, 100);
+            }}
+            
+            body.dark-mode #custom-entry h2 {{
+                color: rgb(255, 100, 150);
+                border-bottom: 2px solid rgb(70, 130, 180);
+            }}
+            
+            body.dark-mode #custom-entry label {{
+                color: rgb(150, 200, 255);
+            }}
+            
+            body.dark-mode #custom-entry select,
+            body.dark-mode #custom-entry input,
+            body.dark-mode #custom-entry textarea {{
+                background-color: rgb(60, 60, 70);
+                color: rgb(220, 220, 230);
+                border: 1px solid rgb(80, 80, 120);
+            }}
+            
+            body.dark-mode #custom-entry button {{
+                background-color: rgb(60, 60, 80);
+                color: rgb(220, 220, 230);
+                border: 1px solid rgb(100, 100, 150);
+            }}
+            
+            body.dark-mode #custom-entry button:hover {{
+                background-color: rgb(80, 110, 150);
             }}
             
             /* Responsive Typography */
@@ -100,12 +237,9 @@ def generate_html_report(categorized_abilities, original_filename):
                     margin-bottom: 10px;
                 }}
                 
-                #save-button {{
-                    padding: 8px 16px;
-                    font-size: 14px;
-                }}
-
-                #toggle-entry-btn {{
+                #save-button,
+                #toggle-entry-btn,
+                #dark-mode-toggle {{
                     padding: 8px 16px;
                     font-size: 14px;
                 }}
@@ -116,12 +250,18 @@ def generate_html_report(categorized_abilities, original_filename):
                 background-color: rgb(250, 250, 255);
             }}
             
+            body.dark-mode .ability:hover {{
+                background-color: rgb(60, 60, 70);
+            }}
+            
             .ability.dragging {{
                 opacity: 0.5;
                 background-color: rgb(250, 250, 255);
             }}
             
-            #save-button {{
+            #save-button,
+            #toggle-entry-btn,
+            #dark-mode-toggle {{
                 display: block;
                 margin: 10px auto;
                 padding: 5px 10px;
@@ -134,28 +274,11 @@ def generate_html_report(categorized_abilities, original_filename):
                 transition: background-color 0.2s;
             }}
             
-            #save-button:hover {{
+            #save-button:hover,
+            #toggle-entry-btn:hover,
+            #dark-mode-toggle:hover {{
                 background-color: rgb(150, 200, 255);
             }}
-
-            
-            #toggle-entry-btn {{
-                display: block;
-                margin: 10px auto;
-                padding: 5px 10px;
-                background-color: rgb(240, 240, 255);
-                color: rgb(50, 50, 25);
-                border: 1px solid rgb(100, 100, 255);
-                border-radius: 3px;
-                font-size: 16px;
-                cursor: pointer;
-                transition: background-color 0.2s;
-            }}
-            
-            #toggle-entry-btn:hover {{
-                background-color: rgb(150, 200, 255);
-            }}
-        
 
             .delete-btn {{
                 position: absolute;
@@ -186,7 +309,6 @@ def generate_html_report(categorized_abilities, original_filename):
                 opacity: 1;
             }}
 
-
             .duplicate-btn {{
                 position: absolute;
                 top: 5px;
@@ -216,7 +338,6 @@ def generate_html_report(categorized_abilities, original_filename):
                 opacity: 1;
             }}
 
-
             @media print {{
                 body {{ 
                     background-color: rgb(255, 255, 255);
@@ -238,7 +359,7 @@ def generate_html_report(categorized_abilities, original_filename):
                 .ability-desc {{
                     color: rgb(0, 0, 0);
                 }}
-                #save-button, #toggle-entry-btn, .delete-btn, .duplicate-btn {{ 
+                #save-button, #toggle-entry-btn, #dark-mode-toggle, .delete-btn, .duplicate-btn {{ 
                     display: none; 
                 }}
             }}
@@ -249,113 +370,59 @@ def generate_html_report(categorized_abilities, original_filename):
 
         <button id="save-button">Save Current Order</button>
         <button id="toggle-entry-btn">Add New Entry</button>
+        <button id="dark-mode-toggle">Toggle Dark Mode</button>
 
-        <div id="custom-entry-container" style="display:none; margin-bottom:20px; ...existing styles...">
-
-            <div id="custom-entry" style="
-                margin-bottom: 20px; 
-                padding: 15px; 
-                background: rgb(245, 245, 255); 
-                border: 1px solid rgb(180, 180, 255); 
-                border-radius: 8px;
-                box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
-                max-width: 600px;
-                ">
-                <h2 style="
-                    margin-top: 0; 
-                    color: rgb(204, 0, 100);
-                    font-size: clamp(1.2rem, 4vw, 1.5rem);
-                    user-select: none;
-                    pointer-events: none;
-                    border-bottom: 2px solid rgb(41, 128, 185);
-                    padding-bottom: 5px;
-                ">Add Custom Entry</h2>
+        <div id="custom-entry-container" style="display:none; margin-bottom:20px;">
+            <div id="custom-entry">
+                <h2>Add Custom Entry</h2>
                 
-                <label style="display: block; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                <label>
                     Phase:
-                    <select id="custom-phase" style="
-                        margin-left: 55px; 
-                        padding: 6px 10px; 
-                        font-size: 1rem;
-                        border: 1px solid rgb(100, 100, 255);
-                        border-radius: 4px;
-                        background-color: white;
-                        color: rgb(25, 25, 103);
-                        cursor: pointer;
-                        min-width: 140px;
-                    ">
+                    <select id="custom-phase">
                         <option value="ANY PHASE">Any Phase</option>
                         <option value="MOVEMENT PHASE">Movement Phase</option>
                         <option value="SHOOTING PHASE">Shooting Phase</option>
                         <option value="CHARGE PHASE">Charge Phase</option>
                         <option value="FIGHT PHASE">Fight Phase</option>
                         <option value="OTHER">Other</option>
-                        
                     </select>
                 </label>
 
-                <label style="display: flex; align-items: center; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                <label>
                     Unit Name:
-                    <input type="text" id="custom-unit" style="
-                        margin-left: 28px;
-                        width: calc(100% - 150px);
-                        padding: 6px 8px;
-                        font-size: 1rem;
-                        border: 1px solid rgb(150, 150, 255);
-                        border-radius: 4px;
-                        color: rgb(25, 25, 103);
-                    "/>
+                    <input type="text" id="custom-unit"/>
                 </label>
 
-                <label style="display: flex; align-items: center; margin-bottom: 12px; font-weight: bold; color: rgb(30,30,205);">
+                <label>
                     Ability Name:
-                    <input type="text" id="custom-name" style="
-                        margin-left: 10px;
-                        width: calc(100% - 150px);
-                        padding: 6px 8px;
-                        font-size: 1rem;
-                        border: 1px solid rgb(150, 150, 255);
-                        border-radius: 4px;
-                        color: rgb(25, 25, 103);
-                    "/>
+                    <input type="text" id="custom-name"/>
                 </label>
 
-                <label style="display: block; margin-bottom: 16px; font-weight: bold; color: rgb(30,30,205);">
+                <label>
                     Ability Description:<br>
-                    <textarea id="custom-desc" rows="4" style="
-                        width: 100%;
-                        padding: 8px;
-                        font-size: 1rem;
-                        border: 1px solid rgb(150, 150, 255);
-                        border-radius: 4px;
-                        color: rgb(25, 25, 103);
-                        resize: vertical;
-                        font-family: Arial, sans-serif;
-                        margin-top: 4px;
-                        box-sizing: border-box;
-                    "></textarea>
+                    <textarea id="custom-desc" rows="4"></textarea>
                 </label>
 
-                <button onclick="addCustomAbility()" style="
-                    padding: 10px 20px;
-                    background-color: rgb(240, 240, 255);
-                    color: rgb(50, 50, 25);
-                    border: 1px solid rgb(100, 100, 255);
-                    border-radius: 3px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-                    display: block;
-                    margin-top: 5px;
-                " onmouseover="this.style.backgroundColor='rgb(150, 200, 255)';" onmouseout="this.style.backgroundColor='rgb(240, 240, 255)';">
-                    Add Entry
-                </button>
+                <button onclick="addCustomAbility()">Add Entry</button>
             </div>
         </div>
 
         {content}
         <script>
             let dragged;
+
+            // Dark mode toggle functionality
+            document.getElementById("dark-mode-toggle").addEventListener("click", () => {{
+                document.body.classList.toggle("dark-mode");
+                // Save preference to localStorage
+                const isDarkMode = document.body.classList.contains("dark-mode");
+                localStorage.setItem("darkMode", isDarkMode);
+            }});
+
+            // Check for saved dark mode preference
+            if (localStorage.getItem("darkMode") === "true") {{
+                document.body.classList.add("dark-mode");
+            }}
 
             // Delete functionality
             function setupDeleteButtons() {{
@@ -460,7 +527,6 @@ def generate_html_report(categorized_abilities, original_filename):
                 const container = document.getElementById("custom-entry-container");
                 if (container.style.display === "none" || container.style.display === "") {{
                     container.style.display = "block";
-                    // Optionally change button text to 'Hide Entry Form'
                     document.getElementById("toggle-entry-btn").textContent = "Hide Add Entry";
                 }} else {{
                     container.style.display = "none";
@@ -483,7 +549,7 @@ def generate_html_report(categorized_abilities, original_filename):
                 const abilityDiv = document.createElement("div");
                 abilityDiv.className = "ability";
                 abilityDiv.innerHTML = `
-                    <button class="duplicate-btn" title="Duplicate ability">&#128464;</button>
+                    <button class="duplicate-btn" title="Duplicate ability">&#128209;</button>
                     <button class="delete-btn" title="Remove ability">&#10005;</button>
                     <div class="unit-name">${{unit}}</div>
                     <div class="ability-name">${{name}}</div>
@@ -551,8 +617,9 @@ def generate_html_report(categorized_abilities, original_filename):
     abilities_valid = []
 
     def bold_flagged_text(text):
-        pattern = r"\*\*\^\^(.*?)\^\^\*\*"
-        return re.sub(pattern, r"<strong>\1</strong>", text)
+        pattern = r"\*\*\^\^(.*?)\^\^\*\*|\*\*(.*?)\*\*"
+        return re.sub(pattern, lambda m: f"<strong>{m.group(1) or m.group(2)}</strong>", text)
+
 
     phase_html = ""
     for phase, abilities in categorized_abilities.items():
@@ -576,7 +643,6 @@ def generate_html_report(categorized_abilities, original_filename):
             abilities_valid.append([ability, description])
 
         phase_html += '</div>\n'
-
 
     download_filename = f"{original_filename}_reordered.html"
     return html_template.format(content=phase_html, filename=download_filename), abilities_valid
