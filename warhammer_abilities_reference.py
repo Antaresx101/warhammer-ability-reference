@@ -379,6 +379,7 @@ def generate_html_report(categorized_abilities, original_filename):
                 <label>
                     Phase:
                     <select id="custom-phase">
+                        <option value="DEPLOYMENT / RESERVES">Deployment / Reserves</option>          
                         <option value="ANY PHASE">Any Phase</option>
                         <option value="MOVEMENT PHASE">Movement Phase</option>
                         <option value="SHOOTING PHASE">Shooting Phase</option>
@@ -429,9 +430,7 @@ def generate_html_report(categorized_abilities, original_filename):
                 document.querySelectorAll('.delete-btn').forEach(btn => {{
                     btn.addEventListener('click', (e) => {{
                         e.stopPropagation();
-                        if (confirm('Remove this ability from your reference?')) {{
-                            e.target.closest('.ability').remove();
-                        }}
+                        e.target.closest('.ability').remove();
                     }});
                 }});
             }}
@@ -505,9 +504,7 @@ def generate_html_report(categorized_abilities, original_filename):
                         // Re-attach listeners to new buttons
                         clone.querySelector('.delete-btn').addEventListener('click', (ev) => {{
                             ev.stopPropagation();
-                            if (confirm('Remove this ability from your reference?')) {{
-                                ev.target.closest('.ability').remove();
-                            }}
+                            ev.target.closest('.ability').remove();
                         }});
                         clone.querySelector('.duplicate-btn').addEventListener('click', (ev) => {{
                             ev.stopPropagation();
@@ -567,9 +564,7 @@ def generate_html_report(categorized_abilities, original_filename):
 
                 abilityDiv.querySelector('.delete-btn').addEventListener('click', (e) => {{
                     e.stopPropagation();
-                    if (confirm('Remove this ability from your reference?')) {{
-                        e.target.closest('.ability').remove();
-                    }}
+                    e.target.closest('.ability').remove();
                 }});
 
                 abilityDiv.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
@@ -579,9 +574,7 @@ def generate_html_report(categorized_abilities, original_filename):
 
                     cloneAgain.querySelector('.delete-btn').addEventListener('click', (e) => {{
                         e.stopPropagation();
-                        if (confirm('Remove this ability from your reference?')) {{
-                            e.target.closest('.ability').remove();
-                        }}
+                        e.target.closest('.ability').remove();
                     }});
                     cloneAgain.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
                         e.stopPropagation();
@@ -656,27 +649,47 @@ def extract_abilities_from_json(json_data):
     def walk_selections(selections, current_unit=""):
         for item in selections:
             name = item.get("name", "")
-            entry_id = item.get("entryId", "")
+            group = item.get("group", "")
 
             # Check for detachment abilities
-            if current_unit.lower() == "detachment" or name.lower() == "detachment":
-                for sub in item.get("selections", []):
-                    detachment_name_instance = sub.get("name", "")
+            if (current_unit.lower() == "detachment" or 
+                name.lower() == "detachment" or 
+                group.lower() == "detachment"):
+                
+                # Get detachment name from this item or its selections
+                if name and name.lower() != "detachment":
+                    detachment_name_instance = name
+                else:
+                    for sub in item.get("selections", []):
+                        detachment_name_instance = sub.get("name", "")
+                        if detachment_name_instance:
+                            break
+                    else: detachment_name_instance = name
+                
+                if detachment_name_instance:
                     detachment_name.append(detachment_name_instance)
-                    for profile in sub.get("profiles", []):
-                        if profile.get("typeName") == "Abilities":
-                            ability_name = profile.get("name", "").strip()
-                            description = next(
-                                (char.get("$text", "").strip()
-                                 for char in profile.get("characteristics", [])
-                                 if char.get("name") == "Description"),
-                                ""
-                            )
-                            detachment_abilities.append(("DETACHMENT ABILITY: " + ability_name, description))
-                continue  # Skip depth search
+
+                # Check profiles for abilities
+                for profile in item.get("profiles", []):
+                    if profile.get("typeName") == "Abilities":
+                        ability_name = profile.get("name", "").strip()
+                        description = next(
+                            (char.get("$text", "").strip()
+                             for char in profile.get("characteristics", [])
+                             if char.get("name") == "Description"),
+                            ""
+                        )
+                        detachment_abilities.append(("DETACHMENT ABILITY: " + ability_name, description))
+                
+                # Check rules for abilities
+                for rule in item.get("rules", []):
+                    ability_name = rule.get("name", "").strip()
+                    description = rule.get("description", "").strip()
+                    if ability_name and description:
+                        detachment_abilities.append(("DETACHMENT ABILITY: " + ability_name, description))
 
             # Normal unit abilities
-            if "profiles" in item:
+            elif "profiles" in item:
                 for profile in item["profiles"]:
                     if profile.get("typeName") == "Abilities":
                         ability_name = profile.get("name", "").strip()
@@ -753,7 +766,7 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
 
 def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_abilities):
     phases = {
-        "DEPLOYMENT": [],
+        "DEPLOYMENT / RESERVES": [],
         "ANY PHASE": [],
         "COMMAND PHASE": [],
         "MOVEMENT PHASE": [],
@@ -770,9 +783,9 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
         "MOVEMENT PHASE": [" move", " fallback", " fall back", " advance", " move phase", " movement phase", " deepstrike", " deep strike"],
         "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
         "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
-        "DEPLOYMENT":     [" reserves", " declare battle formations", " scouts", " infiltrators"]}
+        "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]}
 
-    priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "end of"]
+    priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "until the end of", "until the start of", "end of"]
     priority_center = len(priority_order) // 2
 
     def priority_sort_key(s):
@@ -787,7 +800,8 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
     for ability, description in abilities:
         if ability.split(":")[1].lower().strip() in exclude_abilities: continue
 
-        desc_lower = description.lower().replace("  ", " ")
+        desc_lower = re.sub(r'\s+', ' ', description).strip().lower()
+        description = description.replace("^^", "")
         found = False
 
         for phase, keywords in phase_keywords.items():
