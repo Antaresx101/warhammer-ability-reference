@@ -780,7 +780,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
         "FIGHT PHASE":    [" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"],
         "CHARGE PHASE":   [" charge phase", " charge roll", " charge move"],
         "SHOOTING PHASE": [" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons"],
-        "MOVEMENT PHASE": [" move", " fallback", " fall back", " advance", " move phase", " movement phase", " deepstrike", " deep strike"],
+        "MOVEMENT PHASE": [" moves", " a move", " fallback", " fall back", " advance", " move phase", " movement phase", " deepstrike", " deep strike"],
         "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
         "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
         "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]}
