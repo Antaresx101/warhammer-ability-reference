@@ -713,20 +713,24 @@ def extract_abilities_from_json(json_data):
 
 
 def extract_stratagems_from_waha(stratagems, detachment_name, url):
-    st.success(f"Reading data from: {url}")
-
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Look for headers
+    search_name = detachment_name.lower().replace(" ","")
     header_tag = None
     for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-        found = soup.find(tag, string=lambda t: t and detachment_name in t)
+        found = soup.find(tag, string=lambda t: t and search_name in t.lower().replace(" ",""))
         if found:
             header_tag = found
             break
 
-    # Get content until the next header of the same type
+    if not header_tag:
+        for tag in soup.find_all(['h2', 'h3', 'h4']):
+            if search_name in tag.get_text(strip=True).lower().replace(" ",""):
+                header_tag = tag
+                break
+
     search_CP = ["1CP","2CP","3CP"]
     ref = []
     temp = []
@@ -759,8 +763,6 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
             else: skip -= 1
 
             if section.strip() != "": temp.append(section.replace(".",".\n"))
-
-    stratagems = [[x[0],x[1]] for x in stratagems if x]
 
 
 
@@ -802,6 +804,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
 
         desc_lower = re.sub(r'\s+', ' ', description).strip().lower()
         description = description.replace("^^", "")
+        description = re.sub(r"\b([A-Z]{2,})\b", r"**\1**", description)
         found = False
 
         for phase, keywords in phase_keywords.items():
@@ -861,7 +864,7 @@ def main():
     uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
     if uploaded_file is not None:
-        if True:
+        try:
             original_filename = uploaded_file.name.split('.')[0]
             data = json.load(uploaded_file)
 
@@ -877,10 +880,16 @@ def main():
                     placeholder="e.g., https://wahapedia.ru/wh40k10ed/factions/space-marines")
 
                 if url:
+                    reading_status = st.empty()
                     try:
+                        reading_status = st.warning(f"Reading data from: {url}")
                         extract_stratagems_from_waha(stratagems, detachment_name, url)
                         stratagems = [[x[0],x[1]] for x in stratagems if x]
-                    except: st.warning("Stratagems can´t be extracted from the provided URL.")
+
+                        if stratagems: reading_status.success("Stratagems were found and will be included.")
+                        else: reading_status.warning("Stratagems can´t be extracted from the provided URL.")
+                    except:
+                        reading_status.warning("Stratagems can´t be extracted from the provided URL.")
 
             else: st.warning("Can´t find name of detachment.")
 
@@ -896,7 +905,7 @@ def main():
                     data=html_report,
                     file_name=f"{original_filename}_reordered.html",
                     mime="text/html")
-        else:
+        except:
             st.error("Extraction unsuccessful or data format incompatible.")
 
 if __name__ == "__main__":
