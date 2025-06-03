@@ -3,9 +3,12 @@ import json
 from bs4 import BeautifulSoup
 import requests
 import re
+import time
 
 
-def generate_html_report(categorized_abilities, original_filename):
+
+def generate_html_report(categorized_abilities, original_filename, url_core, url):
+    timestamp = str(int(time.time()))
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -13,369 +16,512 @@ def generate_html_report(categorized_abilities, original_filename):
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Warhammer 40k Ability Reference Extractor</title>
-        <style>
-            /* Base Styles */
+
+    <style>
+        /* Base Styles */
+        body {{
+            font-family: Arial, sans-serif; 
+            margin: 10px; 
+            background-color: rgb(250, 250, 255);
+            font-size: 16px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            transition: background-color 0.3s, color 0.3s;
+        }}
+        
+        /* Dark Mode Styles */
+        body.dark-mode {{
+            background-color: rgb(30, 30, 40);
+            color: rgb(220, 220, 230);
+        }}
+        
+        body.dark-mode .phase-section {{
+            background-color: rgb(40, 40, 50);
+            border-left: 4px solid rgb(70, 130, 180);
+        }}
+        
+        body.dark-mode .ability {{
+            background-color: rgb(50, 50, 60);
+            border-left: 4px solid rgb(70, 130, 180);
+        }}
+        
+        body.dark-mode .unit-name {{
+            color: rgb(180, 180, 255);
+        }}
+        
+        body.dark-mode .ability-name {{
+            color: rgb(150, 200, 255);
+        }}
+        
+        body.dark-mode .ability-desc {{
+            color: rgb(200, 200, 230);
+        }}
+        
+        body.dark-mode h1 {{
+            color: rgb(180, 180, 255);
+            border-bottom: 2px solid rgb(70, 130, 180);
+        }}
+        
+        body.dark-mode h2 {{
+            color: rgb(255, 100, 150);
+            border-bottom: 2px solid rgb(70, 130, 180);
+        }}
+        
+        /* Custom Entry Form Styles - Light Mode */
+        #custom-entry-container {{
+            display: none;
+            margin-bottom: 20px;
+            display: flex; /* Side-by-side layout */
+            gap: 20px; /* Space between form and notes */
+        }}
+        
+        #custom-entry {{
+            margin-bottom: 20px; 
+            padding: 15px; 
+            background: rgb(245, 245, 255); 
+            border: 1px solid rgb(180, 180, 255); 
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
+            flex: 1; /* Take available space */
+            max-width: 35%; /* Limit form width */
+        }}
+        
+        #custom-entry h2 {{
+            margin-top: 0; 
+            color: rgb(204, 0, 100);
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            user-select: none;
+            pointer-events: none;
+            border-bottom: 2px solid rgb(41, 128, 185);
+            padding-bottom: 5px;
+        }}
+        
+        #custom-entry label {{
+            display: block; 
+            margin-bottom: 12px; 
+            font-weight: bold; 
+            color: rgb(30,30,205);
+        }}
+        
+        #custom-entry select,
+        #custom-entry input,
+        #custom-entry textarea {{
+            margin-top: 4px;
+            padding: 6px 8px;
+            font-size: 1rem;
+            border: 1px solid rgb(150, 150, 255);
+            border-radius: 4px;
+            color: rgb(25, 25, 103);
+            background-color: white;
+            width: 100%;
+            box-sizing: border-box;
+        }}
+        
+        #custom-entry textarea {{
+            resize: vertical;
+            font-family: Arial, sans-serif;
+            min-height: 100px;
+        }}
+        
+        #custom-entry button {{
+            padding: 10px 20px;
+            background-color: rgb(240, 240, 255);
+            color: rgb(50, 50, 25);
+            border: 1px solid rgb(100, 100, 255);
+            border-radius: 3px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: block;
+            margin-top: 5px;
+        }}
+        
+        #custom-entry button:hover {{
+            background-color: rgb(150, 200, 255);
+        }}
+        
+        /* Custom Entry Form Styles - Dark Mode */
+        body.dark-mode #custom-entry {{
+            background: rgb(40, 40, 50);
+            border: 1px solid rgb(70, 70, 100);
+        }}
+        
+        body.dark-mode #custom-entry h2 {{
+            color: rgb(255, 100, 150);
+            border-bottom: 2px solid rgb(70, 130, 180);
+        }}
+        
+        body.dark-mode #custom-entry label {{
+            color: rgb(150, 200, 255);
+        }}
+        
+        body.dark-mode #custom-entry select,
+        body.dark-mode #custom-entry input,
+        body.dark-mode #custom-entry textarea {{
+            background-color: rgb(60, 60, 70);
+            color: rgb(220, 220, 230);
+            border: 1px solid rgb(80, 80, 120);
+        }}
+        
+        body.dark-mode #custom-entry button {{
+            background-color: rgb(60, 60, 80);
+            color: rgb(220, 220, 230);
+            border: 1px solid rgb(100, 100, 150);
+        }}
+        
+        body.dark-mode #custom-entry button:hover {{
+            background-color: rgb(80, 110, 150);
+        }}
+        
+        /* Notes Container Styles */
+        #custom-notes-container {{
+            flex: 1; /* Take available space */
+            max-width: 65%; /* Limit notes width */
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgb(245, 245, 255);
+            border: 1px solid rgb(180, 180, 255);
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
+        }}
+        
+        #custom-notes-container h2 {{
+            margin-top: 0;
+            color: rgb(204, 0, 100);
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            user-select: none;
+            pointer-events: none;
+            border-bottom: 2px solid rgb(41, 128, 185);
+            padding-bottom: 5px;
+        }}
+        
+        #custom-notes {{
+            width: 100%;
+            margin-top: 4px;
+            padding: 6px 8px;
+            font-size: 1rem;
+            border: 1px solid rgb(150, 150, 255);
+            border-radius: 4px;
+            color: rgb(25, 25, 103);
+            background-color: white;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: Arial, sans-serif;
+            min-height: 100px;
+            height: 150px;
+        }}
+        
+        /* Notes Container Styles - Dark Mode */
+        body.dark-mode #custom-notes-container {{
+            background: rgb(40, 40, 50);
+            border: 1px solid rgb(70, 70, 100);
+        }}
+        
+        body.dark-mode #custom-notes-container h2 {{
+            color: rgb(255, 100, 150);
+            border-bottom: 2px solid rgb(70, 130, 180);
+        }}
+        
+        body.dark-mode #custom-notes {{
+            background-color: rgb(60, 60, 70);
+            color: rgb(220, 220, 230);
+            border: 1px solid rgb(80, 80, 120);
+        }}
+        
+        /* Responsive Typography */
+        h1 {{
+            color: rgb(25, 25, 103);
+            text-align: center;
+            border-bottom: 2px solid rgb(41, 128, 185);
+            padding-bottom: 8px;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            margin: 15px 0;
+        }}
+        
+        h2 {{
+            color: rgb(204, 0, 100);
+            border-bottom: 2px solid rgb(41, 128, 185);
+            padding-bottom: 5px; 
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            user-select: none;
+            pointer-events: none;
+        }}
+        
+        /* Mobile-First Layout */
+        .phase-section {{
+            background-color: rgb(245, 245, 255);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border-left: 4px solid rgb(52, 152, 219);
+        }}
+        
+        .ability {{
+            position: relative;
+            margin-bottom: 12px;
+            padding: 10px;
+            border-left: 4px solid rgb(41, 128, 185);
+            background-color: rgb(240, 240, 250);
+            transition: all 0.2s ease;
+            overflow-wrap: break-word;
+        }}
+        
+        .unit-name {{
+            font-weight: bold;
+            color: rgb(25, 25, 103);
+            font-size: clamp(1rem, 3.5vw, 1.1rem);
+        }}
+        
+        .ability-name {{
+            font-weight: normal;
+            font-style: italic;
+            color: rgb(30, 30, 205);
+            margin: 5px 0;
+            font-size: clamp(0.95rem, 3.5vw, 1.05rem);
+        }}
+        
+        .ability-desc {{
+            white-space: pre-line;
+            color: rgb(25, 25, 125);
+            font-size: clamp(0.9rem, 3.2vw, 1rem);
+            line-height: 1.5;
+        }}
+        
+        /* Mobile-Specific Adjustments */
+        @media (max-width: 600px) {{
             body {{
-                font-family: Arial, sans-serif; 
-                margin: 10px; 
-                background-color: rgb(250, 250, 255);
-                font-size: 16px;
-                line-height: 1.4;
-                word-wrap: break-word;
-                transition: background-color 0.3s, color 0.3s;
+                margin: 8px;
+                font-size: 14px;
             }}
             
-            /* Dark Mode Styles */
-            body.dark-mode {{
-                background-color: rgb(30, 30, 40);
-                color: rgb(220, 220, 230);
-            }}
-            
-            body.dark-mode .phase-section {{
-                background-color: rgb(40, 40, 50);
-                border-left: 4px solid rgb(70, 130, 180);
-            }}
-            
-            body.dark-mode .ability {{
-                background-color: rgb(50, 50, 60);
-                border-left: 4px solid rgb(70, 130, 180);
-            }}
-            
-            body.dark-mode .unit-name {{
-                color: rgb(180, 180, 255);
-            }}
-            
-            body.dark-mode .ability-name {{
-                color: rgb(150, 200, 255);
-            }}
-            
-            body.dark-mode .ability-desc {{
-                color: rgb(200, 200, 230);
-            }}
-            
-            body.dark-mode h1 {{
-                color: rgb(180, 180, 255);
-                border-bottom: 2px solid rgb(70, 130, 180);
-            }}
-            
-            body.dark-mode h2 {{
-                color: rgb(255, 100, 150);
-                border-bottom: 2px solid rgb(70, 130, 180);
-            }}
-            
-            /* Custom Entry Form Styles - Light Mode */
-            #custom-entry {{
-                margin-bottom: 20px; 
-                padding: 15px; 
-                background: rgb(245, 245, 255); 
-                border: 1px solid rgb(180, 180, 255); 
-                border-radius: 8px;
-                box-shadow: 0 2px 6px rgba(41, 128, 185, 0.15);
-                max-width: 600px;
-            }}
-            
-            #custom-entry h2 {{
-                margin-top: 0; 
-                color: rgb(204, 0, 100);
-                font-size: clamp(1.2rem, 4vw, 1.5rem);
-                user-select: none;
-                pointer-events: none;
-                border-bottom: 2px solid rgb(41, 128, 185);
-                padding-bottom: 5px;
-            }}
-            
-            #custom-entry label {{
-                display: block; 
-                margin-bottom: 12px; 
-                font-weight: bold; 
-                color: rgb(30,30,205);
-            }}
-            
-            #custom-entry select,
-            #custom-entry input,
-            #custom-entry textarea {{
-                margin-top: 4px;
-                padding: 6px 8px;
-                font-size: 1rem;
-                border: 1px solid rgb(150, 150, 255);
-                border-radius: 4px;
-                color: rgb(25, 25, 103);
-                background-color: white;
-                width: 100%;
-                box-sizing: border-box;
-            }}
-            
-            #custom-entry textarea {{
-                resize: vertical;
-                font-family: Arial, sans-serif;
-                min-height: 100px;
-            }}
-            
-            #custom-entry button {{
-                padding: 10px 20px;
-                background-color: rgb(240, 240, 255);
-                color: rgb(50, 50, 25);
-                border: 1px solid rgb(100, 100, 255);
-                border-radius: 3px;
-                font-size: 16px;
-                cursor: pointer;
-                transition: background-color 0.2s;
-                display: block;
-                margin-top: 5px;
-            }}
-            
-            #custom-entry button:hover {{
-                background-color: rgb(150, 200, 255);
-            }}
-            
-            /* Custom Entry Form Styles - Dark Mode */
-            body.dark-mode #custom-entry {{
-                background: rgb(40, 40, 50);
-                border: 1px solid rgb(70, 70, 100);
-            }}
-            
-            body.dark-mode #custom-entry h2 {{
-                color: rgb(255, 100, 150);
-                border-bottom: 2px solid rgb(70, 130, 180);
-            }}
-            
-            body.dark-mode #custom-entry label {{
-                color: rgb(150, 200, 255);
-            }}
-            
-            body.dark-mode #custom-entry select,
-            body.dark-mode #custom-entry input,
-            body.dark-mode #custom-entry textarea {{
-                background-color: rgb(60, 60, 70);
-                color: rgb(220, 220, 230);
-                border: 1px solid rgb(80, 80, 120);
-            }}
-            
-            body.dark-mode #custom-entry button {{
-                background-color: rgb(60, 60, 80);
-                color: rgb(220, 220, 230);
-                border: 1px solid rgb(100, 100, 150);
-            }}
-            
-            body.dark-mode #custom-entry button:hover {{
-                background-color: rgb(80, 110, 150);
-            }}
-            
-            /* Responsive Typography */
-            h1 {{
-                color: rgb(25, 25, 103);
-                text-align: center;
-                border-bottom: 2px solid rgb(41, 128, 185);
-                padding-bottom: 8px;
-                font-size: clamp(1.5rem, 5vw, 2rem);
-                margin: 15px 0;
-            }}
-            
-            h2 {{
-                color: rgb(204, 0, 100);
-                border-bottom: 2px solid rgb(41, 128, 185);
-                padding-bottom: 5px; 
-                font-size: clamp(1.2rem, 4vw, 1.5rem);
-                user-select: none;
-                pointer-events: none;
-            }}
-            
-            /* Mobile-First Layout */
             .phase-section {{
-                background-color: rgb(245, 245, 255);
-                border-radius: 8px;
-                padding: 12px;
-                margin-bottom: 15px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                border-left: 4px solid rgb(52, 152, 219);
+                padding: 10px;
             }}
             
             .ability {{
-                position: relative;
-                margin-bottom: 12px;
-                padding: 10px;
-                border-left: 4px solid rgb(41, 128, 185);
-                background-color: rgb(240, 240, 250);
-                transition: all 0.2s ease;
-                overflow-wrap: break-word;
-            }}
-            
-            .unit-name {{
-                font-weight: bold;
-                color: rgb(25, 25, 103);
-                font-size: clamp(1rem, 3.5vw, 1.1rem);
-            }}
-            
-            .ability-name {{
-                font-weight: normal;
-                font-style: italic;
-                color: rgb(30, 30, 205);
-                margin: 5px 0;
-                font-size: clamp(0.95rem, 3.5vw, 1.05rem);
-            }}
-            
-            .ability-desc {{
-                white-space: pre-line;
-                color: rgb(25, 25, 125);
-                font-size: clamp(0.9rem, 3.2vw, 1rem);
-                line-height: 1.5;
-            }}
-            
-            /* Mobile-Specific Adjustments */
-            @media (max-width: 600px) {{
-                body {{
-                    margin: 8px;
-                    font-size: 14px;
-                }}
-                
-                .phase-section {{
-                    padding: 10px;
-                }}
-                
-                .ability {{
-                    padding: 8px;
-                    margin-bottom: 10px;
-                }}
-                
-                #save-button,
-                #toggle-entry-btn,
-                #dark-mode-toggle {{
-                    padding: 8px 16px;
-                    font-size: 14px;
-                }}
-            }}
-            
-            /* Existing interactive styles */
-            .ability:hover {{
-                background-color: rgb(250, 250, 255);
-            }}
-            
-            body.dark-mode .ability:hover {{
-                background-color: rgb(60, 60, 70);
-            }}
-            
-            .ability.dragging {{
-                opacity: 0.5;
-                background-color: rgb(250, 250, 255);
+                padding: 8px;
+                margin-bottom: 10px;
             }}
             
             #save-button,
             #toggle-entry-btn,
             #dark-mode-toggle {{
-                display: block;
-                margin: 10px auto;
-                padding: 5px 10px;
-                background-color: rgb(240, 240, 255);
-                color: rgb(50, 50, 25);
-                border: 1px solid rgb(100, 100, 255);
-                border-radius: 3px;
-                font-size: 16px;
-                cursor: pointer;
-                transition: background-color 0.2s;
+                padding: 8px 16px;
+                font-size: 14px;
             }}
             
-            #save-button:hover,
-            #toggle-entry-btn:hover,
-            #dark-mode-toggle:hover {{
-                background-color: rgb(150, 200, 255);
-            }}
-
-            .delete-btn {{
-                position: absolute;
-                top: 5px;
-                right: 5px;
-                background: none;
-                border: none;
-                color: rgb(180, 180, 180);
-                cursor: pointer;
-                font-size: 18px;
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                opacity: 0;
-                transition: all 0.2s;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-family: Arial, sans-serif;
+            #custom-entry-container {{
+                flex-direction: column;
             }}
             
-            .delete-btn:hover {{
-                color: rgb(255, 255, 255);
-                background-color: rgb(200, 0, 0);
+            #custom-entry, #custom-notes-container {{
+                max-width: 100%;
             }}
-            
-            .ability:hover .delete-btn {{
-                opacity: 1;
-            }}
+        }}
+        
+        /* Interactive styles */
+        .ability:hover {{
+            background-color: rgb(250, 250, 255);
+        }}
+        
+        body.dark-mode .ability:hover {{
+            background-color: rgb(60, 60, 70);
+        }}
+        
+        .ability.dragging {{
+            opacity: 0.5;
+            background-color: rgb(250, 250, 255);
+        }}
+        
+        #save-button,
+        #toggle-entry-btn,
+        #dark-mode-toggle {{
+            display: block;
+            padding: 5px 10px;
+            background-color: rgb(240, 240, 255);
+            color: rgb(50, 50, 25);
+            border: 1px solid rgb(100, 100, 255);
+            border-radius: 3px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }}
+        
+        #save-button:hover,
+        #toggle-entry-btn:hover,
+        #dark-mode-toggle:hover {{
+            background-color: rgb(150, 200, 255);
+        }}
 
-            .duplicate-btn {{
-                position: absolute;
-                top: 5px;
-                right: 35px;
-                background: none;
-                border: none;
-                color: rgb(150, 150, 200);
-                cursor: pointer;
-                font-size: 18px;
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                opacity: 0;
-                transition: all 0.2s;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-family: Arial, sans-serif;
-            }}
+        .delete-btn {{
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            color: rgb(180, 180, 180);
+            cursor: pointer;
+            font-size: 18px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+        }}
+        
+        .delete-btn:hover {{
+            color: rgb(255, 255, 255);
+            background-color: rgb(200, 0, 0);
+        }}
+        
+        .ability:hover .delete-btn {{
+            opacity: 1;
+        }}
 
-            .duplicate-btn:hover {{
-                color: white;
-                background-color: rgb(0, 123, 255);
-            }}
+        .duplicate-btn {{
+            position: absolute;
+            top: 5px;
+            right: 35px;
+            background: none;
+            border: none;
+            color: rgb(150, 150, 200);
+            cursor: pointer;
+            font-size: 18px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+        }}
 
-            .ability:hover .duplicate-btn {{
-                opacity: 1;
-            }}
+        .duplicate-btn:hover {{
+            color: white;
+            background-color: rgb(0, 123, 255);
+        }}
 
-            @media print {{
-                body {{ 
-                    background-color: rgb(255, 255, 255);
-                    color: rgb(0, 0, 0);
-                }}
-                .phase-section {{ 
-                    box-shadow: none; 
-                    page-break-inside: avoid;
-                    background-color: rgb(255, 255, 255);
-                    border-left: 2px solid rgb(0, 0, 0);
-                }}
-                .ability {{
-                    background-color: rgb(255, 255, 255);
-                    border-left: 2px solid rgb(0, 0, 0);
-                }}
-                .ability-name, .unit-name {{
-                    color: rgb(0, 0, 0);
-                }}
-                .ability-desc {{
-                    color: rgb(0, 0, 0);
-                }}
-                #save-button, #toggle-entry-btn, #dark-mode-toggle, .delete-btn, .duplicate-btn {{ 
-                    display: none; 
-                }}
+        .ability:hover .duplicate-btn {{
+            opacity: 1;
+        }}
+
+        .button-container {{
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }}
+        
+        .button-container button {{
+            padding: 8px 5px;
+            cursor: pointer;
+        }}
+
+        
+        #aux-buttons {{
+            display: inline-flex;
+            gap: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+
+
+        @media (max-width: 600px) {{
+            #custom-entry-container {{
+                flex-direction: column;
             }}
-        </style>
-    </head>
+            #custom-entry, #custom-notes-container {{
+                max-width: 100%;
+            }}
+        }}
+
+        
+        /* Common button styles */
+        .button-global {{
+            padding: 10px 20px;
+            background-color: rgb(240, 240, 255);
+            color: rgb(50, 50, 25);
+            border: 1px solid rgb(100, 100, 255);
+            border-radius: 3px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: block;
+            margin-top: 5px;
+        }}
+
+        .button-global:hover {{
+            background-color: rgb(150, 200, 255);
+        }}
+
+        
+        .button-global.link-button {{
+            background-color: rgb(197, 213, 240);
+            color: rgb(30, 30, 50);
+            border: 1px solid rgb(29, 54, 94);
+        }}
+
+        .button-global.link-button:hover {{
+            background-color: rgb(216, 224, 237);
+        }}
+
+
+        /* Dark mode button styles */
+        body.dark-mode .button-global {{
+            background-color: rgb(60, 60, 80);
+            color: rgb(220, 220, 230);
+            border: 1px solid rgb(100, 100, 150);
+        }}
+
+        body.dark-mode .button-global:hover {{
+            background-color: rgb(80, 110, 150);
+        }}
+
+
+        @media print {{
+            body {{ 
+                background-color: rgb(255, 255, 255);
+                color: rgb(0, 0, 0);
+            }}
+            .phase-section {{ 
+                box-shadow: none; 
+                page-break-inside: avoid;
+                background-color: rgb(255, 255, 255);
+                border-left: 2px solid rgb(0, 0, 0);
+            }}
+            .ability {{
+                background-color: rgb(255, 255, 255);
+                border-left: 2px solid rgb(0, 0, 0);
+            }}
+            .ability-name, .unit-name {{
+                color: rgb(0, 0, 0);
+            }}
+            .ability-desc {{
+                color: rgb(0, 0, 0);
+            }}
+            #save-button, #toggle-entry-btn, #dark-mode-toggle, .delete-btn, .duplicate-btn {{ 
+                display: none; 
+            }}
+        }}
+    </style>
+
+</head>
     <body>
         <h1>Warhammer 40k Ability Reference</h1>
-
-        <button id="save-button">Save Current Order</button>
-        <button id="toggle-entry-btn">Add New Entry</button>
-        <button id="dark-mode-toggle">Toggle Dark Mode</button>
-
-        <div id="custom-entry-container" style="display:none; margin-bottom:20px;">
+        <div class="button-container">
+            <button id="save-button" class="button-global">Save Current Order</button>
+            <button id="toggle-entry-btn" class="button-global">Show Options</button>
+            <button id="dark-mode-toggle" class="button-global">Toggle Dark Mode</button>
+        </div>
+        <div id="custom-entry-container" style="display: none;">
             <div id="custom-entry">
                 <h2>Add Custom Entry</h2>
-                
                 <label>
                     Phase:
                     <select id="custom-phase">
@@ -388,26 +534,48 @@ def generate_html_report(categorized_abilities, original_filename):
                         <option value="OTHER">Other</option>
                     </select>
                 </label>
-
                 <label>
                     Unit Name:
                     <input type="text" id="custom-unit"/>
                 </label>
-
                 <label>
                     Ability Name:
                     <input type="text" id="custom-name"/>
                 </label>
-
                 <label>
                     Ability Description:<br>
                     <textarea id="custom-desc" rows="4"></textarea>
                 </label>
-
-                <button onclick="addCustomAbility()">Add Entry</button>
+                <div id="aux-buttons">
+                    <button onclick="addCustomAbility()" class="button-global">Add Entry</button>
+                    <script>
+                        const urlCore = "{url_core}";
+                        if (urlCore && !document.querySelector('#aux-buttons a[href="' + urlCore + '"]')) {{
+                            const coreLink = document.createElement('a');
+                            coreLink.href = urlCore;
+                            coreLink.target = '_blank';
+                            coreLink.className = 'button-global link-button';
+                            coreLink.textContent = 'Core Rules';
+                            document.getElementById('aux-buttons').appendChild(coreLink);
+                        }}
+                        const urlFaction = "{url}";
+                        if (urlFaction && !document.querySelector('#aux-buttons a[href="' + urlFaction + '"]')) {{
+                            const factionLink = document.createElement('a');
+                            factionLink.href = urlFaction;
+                            factionLink.target = '_blank';
+                            factionLink.className = 'button-global link-button';
+                            factionLink.textContent = 'Faction Rules';
+                            document.getElementById('aux-buttons').appendChild(factionLink);
+                        }}
+                    </script>
+                </div>
+            </div>
+            <div id="custom-notes-container">
+                <h2>Notes</h2>
+                <textarea id="custom-notes" rows="4" placeholder="Enter notes here..."></textarea>
+                <input type="hidden" id="saved-notes" value="">
             </div>
         </div>
-
         {content}
         <script>
             let dragged;
@@ -415,7 +583,6 @@ def generate_html_report(categorized_abilities, original_filename):
             // Dark mode toggle functionality
             document.getElementById("dark-mode-toggle").addEventListener("click", () => {{
                 document.body.classList.toggle("dark-mode");
-                // Save preference to localStorage
                 const isDarkMode = document.body.classList.contains("dark-mode");
                 localStorage.setItem("darkMode", isDarkMode);
             }});
@@ -425,49 +592,107 @@ def generate_html_report(categorized_abilities, original_filename):
                 document.body.classList.add("dark-mode");
             }}
 
+            // Save and load notes
+            const notesTextarea = document.getElementById("custom-notes");
+            const savedNotesInput = document.getElementById("saved-notes");
+            notesTextarea.addEventListener("input", () => {{
+                savedNotesInput.value = notesTextarea.value;
+            }});
+            if (savedNotesInput.value) {{
+                notesTextarea.value = savedNotesInput.value;
+            }}
+
             // Delete functionality
             function setupDeleteButtons() {{
                 document.querySelectorAll('.delete-btn').forEach(btn => {{
-                    btn.addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        e.target.closest('.ability').remove();
-                    }});
+                    btn.removeEventListener('click', handleDeleteClick);
+                    btn.addEventListener('click', handleDeleteClick);
                 }});
             }}
 
-            document.addEventListener("DOMContentLoaded", () => {{
-                // Initialize delete buttons
-                setupDeleteButtons();
-                setupDuplicateButtons();
-                
-                // Drag and drop functionality
+            function handleDeleteClick(e) {{
+                e.stopPropagation();
+                e.target.closest('.ability').remove();
+            }}
+
+            // Duplicate functionality
+            function setupDuplicateButtons() {{
+                document.querySelectorAll('.duplicate-btn').forEach(btn => {{
+                    btn.removeEventListener('click', handleDuplicateClick);
+                    btn.addEventListener('click', handleDuplicateClick);
+                }});
+            }}
+
+            function handleDuplicateClick(e) {{
+                e.stopPropagation();
+                const ability = e.target.closest('.ability');
+                const clone = ability.cloneNode(true);
+                clone.id = 'ability-' + Math.random().toString(36).substr(2, 9);
+                clone.setAttribute("draggable", "true");
+                clone.addEventListener("dragstart", (e) => {{
+                    dragged = e.target;
+                    e.target.classList.add("dragging");
+                }});
+                clone.addEventListener("dragend", (e) => {{
+                    e.target.classList.remove("dragging");
+                }});
+                clone.querySelector('.delete-btn').addEventListener('click', handleDeleteClick);
+                clone.querySelector('.duplicate-btn').addEventListener('click', handleDuplicateClick);
+                ability.after(clone);
+            }}
+
+            // Drag-and-drop setup
+            function setupDragAndDrop() {{
                 const allAbilities = document.querySelectorAll(".ability");
                 allAbilities.forEach(el => {{
                     el.setAttribute("draggable", "true");
-                    el.addEventListener("dragstart", (e) => {{
-                        dragged = e.target;
-                        e.target.classList.add("dragging");
-                    }});
-                    el.addEventListener("dragend", (e) => {{
-                        e.target.classList.remove("dragging");
-                    }});
+                    el.removeEventListener("dragstart", handleDragStart);
+                    el.removeEventListener("dragend", handleDragEnd);
+                    el.addEventListener("dragstart", handleDragStart);
+                    el.addEventListener("dragend", handleDragEnd);
                 }});
 
                 const allDropZones = document.querySelectorAll(".phase-section");
                 allDropZones.forEach(section => {{
-                    section.addEventListener("dragover", (e) => {{
-                        e.preventDefault();
-                        const afterElement = getDragAfterElement(section, e.clientY);
-                        if (!afterElement) {{
-                            section.appendChild(dragged);
-                        }} else {{
-                            section.insertBefore(dragged, afterElement);
-                        }}
-                    }});
+                    section.removeEventListener("dragover", handleDragOver);
+                    section.addEventListener("dragover", handleDragOver);
                 }});
+            }}
 
+            function handleDragStart(e) {{
+                dragged = e.target;
+                e.target.classList.add("dragging");
+                console.log('Dragging ability:', e.target.id); // Debug log
+            }}
+
+            function handleDragEnd(e) {{
+                e.target.classList.remove("dragging");
+                console.log('Dropped ability:', e.target.id); // Debug log
+            }}
+
+            function handleDragOver(e) {{
+                e.preventDefault();
+                const afterElement = getDragAfterElement(e.target.closest('.phase-section'), e.clientY);
+                if (!afterElement) {{
+                    e.target.closest('.phase-section').appendChild(dragged);
+                }} else {{
+                    e.target.closest('.phase-section').insertBefore(dragged, afterElement);
+                }}
+            }}
+
+            document.addEventListener("DOMContentLoaded", () => {{
+                setupDeleteButtons();
+                setupDuplicateButtons();
+                setupDragAndDrop();
+                
                 document.getElementById("save-button").addEventListener("click", () => {{
-                    const htmlContent = document.documentElement.outerHTML;
+                    const clonedDoc = document.documentElement.cloneNode(true);
+                    const auxButtons = clonedDoc.querySelector("#aux-buttons");
+                    if (auxButtons) {{
+                        const links = auxButtons.querySelectorAll("a");
+                        links.forEach(link => link.remove());
+                    }}
+                    const htmlContent = clonedDoc.outerHTML;
                     const blob = new Blob([htmlContent], {{ type: "text/html" }});
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
@@ -495,42 +720,16 @@ def generate_html_report(categorized_abilities, original_filename):
                 }}, {{ offset: Number.NEGATIVE_INFINITY }}).element;
             }}
 
-            function setupDuplicateButtons() {{
-                document.querySelectorAll('.duplicate-btn').forEach(btn => {{
-                    btn.addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        const ability = e.target.closest('.ability');
-                        const clone = ability.cloneNode(true);
-                        // Re-attach listeners to new buttons
-                        clone.querySelector('.delete-btn').addEventListener('click', (ev) => {{
-                            ev.stopPropagation();
-                            ev.target.closest('.ability').remove();
-                        }});
-                        clone.querySelector('.duplicate-btn').addEventListener('click', (ev) => {{
-                            ev.stopPropagation();
-                            const abilityAgain = ev.target.closest('.ability');
-                            const cloneAgain = abilityAgain.cloneNode(true);
-                            abilityAgain.after(cloneAgain);
-                            setupDuplicateButtons();
-                            setupDeleteButtons();
-                        }});
-                        ability.after(clone);
-                    }});
-                }});
-            }}
-
-            
             document.getElementById("toggle-entry-btn").addEventListener("click", () => {{
                 const container = document.getElementById("custom-entry-container");
                 if (container.style.display === "none" || container.style.display === "") {{
-                    container.style.display = "block";
-                    document.getElementById("toggle-entry-btn").textContent = "Hide Add Entry";
+                    container.style.display = "flex";
+                    document.getElementById("toggle-entry-btn").textContent = "Hide Options";
                 }} else {{
                     container.style.display = "none";
-                    document.getElementById("toggle-entry-btn").textContent = "Add New Entry";
+                    document.getElementById("toggle-entry-btn").textContent = "Show Options";
                 }}
             }});
-
 
             function addCustomAbility() {{
                 const phase = document.getElementById("custom-phase").value;
@@ -545,48 +744,21 @@ def generate_html_report(categorized_abilities, original_filename):
 
                 const abilityDiv = document.createElement("div");
                 abilityDiv.className = "ability";
+                abilityDiv.id = 'ability-' + Math.random().toString(36).substr(2, 9);
                 abilityDiv.innerHTML = `
-                    <button class="duplicate-btn" title="Duplicate ability">&#128209;</button>
-                    <button class="delete-btn" title="Remove ability">&#10005;</button>
+                    <button class="duplicate-btn" title="Duplicate ability">📑</button>
+                    <button class="delete-btn" title="Remove ability">✕</button>
                     <div class="unit-name">${{unit}}</div>
                     <div class="ability-name">${{name}}</div>
                     <div class="ability-desc">${{desc.replace(/\\n/g, "<br>")}}</div>
                 `;
 
                 abilityDiv.setAttribute("draggable", "true");
-                abilityDiv.addEventListener("dragstart", (e) => {{
-                    dragged = e.target;
-                    e.target.classList.add("dragging");
-                }});
-                abilityDiv.addEventListener("dragend", (e) => {{
-                    e.target.classList.remove("dragging");
-                }});
+                abilityDiv.addEventListener("dragstart", handleDragStart);
+                abilityDiv.addEventListener("dragend", handleDragEnd);
 
-                abilityDiv.querySelector('.delete-btn').addEventListener('click', (e) => {{
-                    e.stopPropagation();
-                    e.target.closest('.ability').remove();
-                }});
-
-                abilityDiv.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
-                    e.stopPropagation();
-                    const abilityAgain = e.target.closest('.ability');
-                    const cloneAgain = abilityAgain.cloneNode(true);
-
-                    cloneAgain.querySelector('.delete-btn').addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        e.target.closest('.ability').remove();
-                    }});
-                    cloneAgain.querySelector('.duplicate-btn').addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        const abilityAgainAgain = e.target.closest('.ability');
-                        const cloneAgainAgain = abilityAgainAgain.cloneNode(true);
-                        abilityAgainAgain.after(cloneAgainAgain);
-                        setupDuplicateButtons();
-                        setupDeleteButtons();
-                    }});
-
-                    abilityAgain.after(cloneAgain);
-                }});
+                abilityDiv.querySelector('.delete-btn').addEventListener('click', handleDeleteClick);
+                abilityDiv.querySelector('.duplicate-btn').addEventListener('click', handleDuplicateClick);
 
                 const section = [...document.querySelectorAll(".phase-section")].find(s =>
                     s.querySelector("h2")?.innerText === phase
@@ -597,7 +769,6 @@ def generate_html_report(categorized_abilities, original_filename):
                     alert("Phase section not found.");
                 }}
 
-                // Reset fields
                 document.getElementById("custom-unit").value = "";
                 document.getElementById("custom-name").value = "";
                 document.getElementById("custom-desc").value = "";
@@ -607,38 +778,37 @@ def generate_html_report(categorized_abilities, original_filename):
     </html>
     """
 
-    abilities_valid = []
-
     def bold_flagged_text(text):
         pattern = r"\*\*\^\^(.*?)\^\^\*\*|\*\*(.*?)\*\*"
         return re.sub(pattern, lambda m: f"<strong>{m.group(1) or m.group(2)}</strong>", text)
-
 
     phase_html = ""
     for phase, abilities in categorized_abilities.items():
         phase_html += f'<div class="phase-section">\n'
         phase_html += f'<h2>{phase}</h2>\n'
-
-        for ability, description in abilities:
+        for idx, (ability, description) in enumerate(abilities):
             unit_name = ability.split(":")[0].strip()
             ability_name = ability.split(":")[1].strip()
-
             description_bolded = bold_flagged_text(description)
-
-            phase_html += f'<div class="ability">\n'
-            phase_html += f'<button class="duplicate-btn" title="Duplicate ability">&#128464;</button>\n'
-            phase_html += f'<button class="delete-btn" title="Remove ability">&#10005;</button>\n'
+            phase_html += f'<div class="ability" id="ability-{phase.lower().replace(" / ","-").replace(" ","-")}-{idx}">\n'
+            phase_html += f'<button class="duplicate-btn" title="Duplicate ability">📑</button>\n'
+            phase_html += f'<button class="delete-btn" title="Remove ability">✕</button>\n'
             phase_html += f'<div class="unit-name">{unit_name}</div>\n'
             phase_html += f'<div class="ability-name">{ability_name}</div>\n'
             phase_html += f'<div class="ability-desc">{description_bolded}</div>\n'
-            phase_html += '</div>\n'
-
-            abilities_valid.append([ability, description])
-
-        phase_html += '</div>\n'
+            phase_html += f'</div>\n'
+        phase_html += f'</div>\n'
 
     download_filename = f"{original_filename}_reordered.html"
-    return html_template.format(content=phase_html, filename=download_filename), abilities_valid
+
+    return html_template.format(
+        css=html_template.split('<style>')[1].split('</style>')[0],
+        content=phase_html,
+        filename=download_filename,
+        timestamp=timestamp,
+        url_core=url_core or "",
+        url=url or ""
+    )
 
 
 def extract_abilities_from_json(json_data):
@@ -800,7 +970,9 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
     exclude_abilities = [x.lower() for x in exclude_abilities]
 
     for ability, description in abilities:
-        if ability.split(":")[1].lower().strip() in exclude_abilities: continue
+        parts = ability.split(":")
+        if len(parts) < 2 or parts[1].lower().strip() in exclude_abilities:
+            continue
 
         desc_lower = re.sub(r'\s+', ' ', description).strip().lower()
         description = description.replace("^^", "")
@@ -846,7 +1018,7 @@ def main():
     5. Redownload your modified HTML file
     """)
 
-    stratagems, detachment_abilities, detachment_name = [], [], None
+    stratagems, detachment_abilities, detachment_name, url, url_core = [], [], None, None, None
 
 
     # Initialize session state
@@ -886,6 +1058,8 @@ def main():
                         extract_stratagems_from_waha(stratagems, detachment_name, url)
                         stratagems = [[x[0],x[1]] for x in stratagems if x]
 
+                        url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+
                         if stratagems: reading_status.success("Stratagems were found and will be included.")
                         else: reading_status.warning("Stratagems can´t be extracted from the provided URL.")
                     except:
@@ -894,9 +1068,8 @@ def main():
             else: st.warning("Can´t find name of detachment.")
 
             with st.spinner("Processing JSON file..."):
-
                 categorized = categorize_abilities(detachment_abilities, stratagems, abilities, st.session_state.exclude_abilities)
-                html_report, abilities_valid = generate_html_report(categorized, original_filename)
+                html_report = generate_html_report(categorized, original_filename, url_core, url)
 
                 st.success("Extraction from JSON file complete.")
                 
