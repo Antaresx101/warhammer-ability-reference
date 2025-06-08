@@ -1,10 +1,9 @@
 import streamlit as st
-import json
 from bs4 import BeautifulSoup
 import requests
+import json
 import re
 import time
-
 
 
 def generate_html_report(categorized_abilities, original_filename, url_core, url):
@@ -810,7 +809,7 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
         url=url or ""
     )
 
-
+@st.cache_data
 def extract_abilities_from_json(json_data):
     abilities = []
     detachment_abilities = []
@@ -886,18 +885,21 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
+    def normalize(tt):
+        return re.sub(r"[^a-zA-Z0-9]","", tt.lower()).replace(" ", "")
+
     # Look for headers
-    search_name = detachment_name.lower().replace(" ","")
+    search_name = normalize(detachment_name)
     header_tag = None
     for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-        found = soup.find(tag, string=lambda t: t and search_name in t.lower().replace(" ",""))
+        found = soup.find(tag, string=lambda t: t and search_name in normalize(t))
         if found:
             header_tag = found
             break
 
     if not header_tag:
         for tag in soup.find_all(['h2', 'h3', 'h4']):
-            if search_name in tag.get_text(strip=True).lower().replace(" ",""):
+            if search_name in normalize(tag.get_text(strip=True)):
                 header_tag = tag
                 break
 
@@ -936,7 +938,7 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
 
 
 
-def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_abilities):
+def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abilities, exclude_abilities):
     phases = {
         "DEPLOYMENT / RESERVES": [],
         "ANY PHASE": [],
@@ -952,7 +954,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
         "FIGHT PHASE":    [" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"],
         "CHARGE PHASE":   [" charge phase", " charge roll", " charge move"],
         "SHOOTING PHASE": [" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons"],
-        "MOVEMENT PHASE": [" moves", " a move", " fallback", " fall back", " advance", " move phase", " movement phase", " deepstrike", " deep strike"],
+        "MOVEMENT PHASE": [" moves", " a move", "normal move", " fallback", " fall back", " advance ", " move phase", " movement phase", " deepstrike", " deep strike"],
         "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
         "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
         "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]}
@@ -966,7 +968,7 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
             if p in s: return i
         return priority_center
 
-    abilities = detachment_abilities + stratagems + abilities
+    abilities = detachment_abilities + core_stratagems + stratagems + abilities
     exclude_abilities = [x.lower() for x in exclude_abilities]
 
     for ability, description in abilities:
@@ -1006,7 +1008,28 @@ def categorize_abilities(detachment_abilities, stratagems, abilities, exclude_ab
 
 
 def main():
-    st.title("Automatic Warhammer 40k Ability Reference")
+    st.markdown("""
+    <style>
+    /* Title Style */
+    h1 {
+        text-align: center;
+        color: #b0c4de;
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+
+    /* Form Style */
+    .stForm {
+        border: 1px solid #2a4b5b;
+        border-radius: 5px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.title("Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
     
@@ -1018,68 +1041,105 @@ def main():
     5. Redownload your modified HTML file
     """)
 
-    stratagems, detachment_abilities, detachment_name, url, url_core = [], [], None, None, None
+    # Session States
+    if 'abilities' not in st.session_state:
+        st.session_state.abilities = []
+    if 'exclude_abilities' not in st.session_state:
+        st.session_state.exclude_abilities = []
+    if 'categorized' not in st.session_state:
+        st.session_state.categorized = None
+    if 'html_report' not in st.session_state:
+        st.session_state.html_report = None
+    if 'original_filename' not in st.session_state:
+        st.session_state.original_filename = None
+    if 'url' not in st.session_state:
+        st.session_state.url = None
+    if 'url_core' not in st.session_state:
+        st.session_state.url_core = None
+    if 'run_ok' not in st.session_state:
+        st.session_state.run_ok = True
 
 
-    # Initialize session state
-    if 'abilities' not in st.session_state: st.session_state.abilities = []
-    if 'exclude_abilities' not in st.session_state: st.session_state.exclude_abilities = []
+    # Input Form
+    with st.form(key="input_form"):
+        uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
-    # Exclude abilities input
-    abilities_input = st.text_area(
-        "Enter abilities to exclude (one per line, e.g. Invulnuverable Save)",
-        height=75)
+        abilities_input = st.text_area(
+            "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
+            height=75 )
 
-    if abilities_input: st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
+        url = st.text_input(
+            label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
+            placeholder="e.g., https://wahapedia.ru/wh40kXXed/factions/space-marines" )
 
-    # File upload processing
-    uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
+        core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
+        submit_button = st.form_submit_button("Process File")
 
-    if uploaded_file is not None:
-        try:
-            original_filename = uploaded_file.name.split('.')[0]
-            data = json.load(uploaded_file)
+        if submit_button and uploaded_file is not None:
+            if abilities_input:
+                st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
 
-            abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
+            st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
+            st.session_state.url = url
 
+            try:
+                data = json.load(uploaded_file)
+                abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
-            if detachment_name:
-                detachment_name = detachment_name[0]
-                st.subheader(f"Detachment: {detachment_name}")
+                stratagems, core_stratagems = [], []
+                if detachment_name:
+                    detachment_name = detachment_name[0]
+                    st.subheader(f"Detachment: {detachment_name}")
 
-                url = st.text_input(
-                    label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
-                    placeholder="e.g., https://wahapedia.ru/wh40k10ed/factions/space-marines")
+                    if url:
+                        try:
+                            reading_status = st.empty()
+                            st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+                            if not core_strategems_option:
+                                reading_status.warning(f"Reading data from: {url}")
+                            else:
+                                reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
 
-                if url:
-                    reading_status = st.empty()
-                    try:
-                        reading_status = st.warning(f"Reading data from: {url}")
-                        extract_stratagems_from_waha(stratagems, detachment_name, url)
-                        stratagems = [[x[0],x[1]] for x in stratagems if x]
+                            extract_stratagems_from_waha(stratagems, detachment_name, url)
+                            stratagems = [[x[0], x[1]] for x in stratagems if x]
 
-                        url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+                            if stratagems:
+                                reading_status.success("Detachment Stratagems were found and will be included.")
 
-                        if stratagems: reading_status.success("Stratagems were found and will be included.")
-                        else: reading_status.warning("Stratagems can´t be extracted from the provided URL.")
-                    except:
-                        reading_status.warning("Stratagems can´t be extracted from the provided URL.")
+                                if core_strategems_option:
+                                    core_strategems_status = st.empty()
+                                    extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
+                                    core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
+                                    if core_stratagems:
+                                        core_strategems_status.success("Core Stratagems were found and will be included.")
+                                    else:
+                                        core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
+                            else:
+                                reading_status.warning("Stratagems can’t be extracted from the provided URL.")
+                        except:
+                            reading_status.warning("Stratagems can’t be extracted from the provided URL.")
 
-            else: st.warning("Can´t find name of detachment.")
+                with st.spinner("Processing JSON file..."):
+                    st.session_state.categorized = categorize_abilities(
+                        detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
+                    )
+                    st.session_state.html_report = generate_html_report(
+                        st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
+                    )
+                    st.success("Extraction from JSON file complete.")
+            except:
+                st.error("Extraction unsuccessful or data format incompatible.")
+                st.session_state.run_ok = False
 
-            with st.spinner("Processing JSON file..."):
-                categorized = categorize_abilities(detachment_abilities, stratagems, abilities, st.session_state.exclude_abilities)
-                html_report = generate_html_report(categorized, original_filename, url_core, url)
-
-                st.success("Extraction from JSON file complete.")
-                
-                st.download_button(
-                    label="Download Reorderable HTML",
-                    data=html_report,
-                    file_name=f"{original_filename}_reordered.html",
-                    mime="text/html")
-        except:
-            st.error("Extraction unsuccessful or data format incompatible.")
+    # Download Button
+    if st.session_state.html_report and st.session_state.run_ok:
+        st.download_button(
+            label="Download Reorderable HTML",
+            data=st.session_state.html_report,
+            file_name=f"{st.session_state.original_filename}_reordered.html",
+            mime="text/html",
+            key="download_button"
+        )
 
 if __name__ == "__main__":
     main()
