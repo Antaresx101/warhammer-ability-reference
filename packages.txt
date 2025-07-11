@@ -1,1 +1,1 @@
-wkhtmltopdf
+playwright install
