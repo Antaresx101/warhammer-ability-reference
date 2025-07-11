@@ -1155,24 +1155,29 @@ def main():
             html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
             st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
             convert_button = st.form_submit_button("Convert to Image")
-
+    
         if convert_button and html_file is not None:
             with st.spinner("Converting HTML to image..."):
                 try:
+                    # Set wkhtmltoimage executable path via environment variable
+                    import os
+                    os.environ['HTI_WKHTMLTOPDF'] = '/usr/bin/wkhtmltoimage'
+    
                     # Temp file
                     with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
                         tmp_html.write(html_file.read())
                         tmp_html_path = tmp_html.name
-
+    
+                    # Temp dir
                     output_name = "tmp.png"
-
-                    # Convert HTML to image with wkhtmltoimage
-                    hti = Html2Image(output_path=tempfile.gettempdir(), wkhtmltoimage='/usr/bin/wkhtmltoimage')
+    
+                    # Convert HTML to image
+                    hti = Html2Image(output_path=tempfile.gettempdir())
                     hti.screenshot(html_file=tmp_html_path, save_as=output_name, size=(1200, 15000))
-
+    
                     with open(output_name, "rb") as img_file:
                         img_bytes = img_file.read()
-
+    
                     # Download button image
                     st.download_button(
                         label="Download Image",
@@ -1182,10 +1187,13 @@ def main():
                         key="image_download"
                     )
                     st.markdown("You will have to crop the image by hand for now, sorry :/")
-
+    
                     # Display image
                     st.image(img_bytes, caption='Converted Image')
-
+    
+                    # Delete temp files
+                    os.remove(tmp_html_path)
+                    os.remove(output_name)
                     st.success("Conversion complete.")
                 except Exception as e:
                     st.error(f"Conversion failed: {e}")
