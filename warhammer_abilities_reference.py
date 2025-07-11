@@ -4,7 +4,6 @@ import requests
 import json
 import re
 import time
-from html2image import Html2Image
 import tempfile
 from playwright.sync_api import sync_playwright
 
