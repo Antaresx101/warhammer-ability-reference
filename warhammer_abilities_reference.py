@@ -5,6 +5,7 @@ import json
 import re
 import time
 import tempfile
+import os
 from playwright.sync_api import sync_playwright
 
 
@@ -1031,6 +1032,38 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
+import streamlit as st
+from bs4 import BeautifulSoup
+import requests
+import json
+import re
+import time
+import tempfile
+import os
+from playwright.sync_api import sync_playwright
+
+def main():
+    st.markdown("""
+    <style>
+    /* Title Style */
+    h1 {
+        text-align: center;
+        color: #b0c4de;
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+
+    /* Form Style */
+    .stForm {
+        border: 1px solid #2a4b5b;
+        border-radius: 5px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.title("Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
@@ -1060,7 +1093,6 @@ def main():
         st.session_state.url_core = None
     if 'run_ok' not in st.session_state:
         st.session_state.run_ok = True
-
 
     col1, col2 = st.columns([2, 1])
 
@@ -1147,52 +1179,54 @@ def main():
                 key="download_button"
             )
 
-
     # Right Column: HTML to Image Conversion Form
-        with col2:
-            with st.form(key="html_to_image_form"):
-                st.markdown("#### HTML to Image")
-                html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
-                st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
-                convert_button = st.form_submit_button("Convert to Image")
-    
-            if convert_button and html_file is not None:
-                with st.spinner("Converting HTML to image..."):
-                    try:
-                        # Temp file
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
-                            tmp_html.write(html_file.read())
-                            tmp_html_path = tmp_html.name
-    
-                        # Playwright screenshot
-                        from playwright.sync_api import sync_playwright
-                        with sync_playwright() as p:
-                            browser = p.chromium.launch(headless=True)
-                            page = browser.new_page()
-                            page.goto(f"file://{tmp_html_path}")
-                            # Set viewport to a large size to capture full content
-                            page.set_viewport_size({"width": 1200, "height": 15000})
-                            # Take screenshot
-                            img_bytes = page.screenshot(full_page=True)
-    
-                        # Download button image
-                        st.download_button(
-                            label="Download Image",
-                            data=img_bytes,
-                            file_name=html_file.name.rsplit('.')[0] + ".png",
-                            mime="image/png",
-                            key="image_download"
-                        )
-                        st.markdown("You will have to crop the image by hand for now, sorry :/")
-    
-                        # Display image
-                        st.image(img_bytes, caption='Converted Image')
-    
-                        # Delete temp file
-                        os.remove(tmp_html_path)
-                        st.success("Conversion complete.")
-                    except Exception as e:
-                        st.error(f"Conversion failed: {e}")
+    with col2:
+        with st.form(key="html_to_image_form"):
+            st.markdown("#### HTML to Image")
+            html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
+            st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
+            convert_button = st.form_submit_button("Convert to Image")
+
+        if convert_button and html_file is not None:
+            with st.spinner("Converting HTML to image..."):
+                try:
+                    # Temp file
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
+                        tmp_html.write(html_file.read())
+                        tmp_html_path = tmp_html.name
+
+                    # Use Playwright to take screenshot
+                    from playwright.sync_api import sync_playwright
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(headless=True)
+                        page = browser.new_page()
+                        page.goto(f"file://{tmp_html_path}")
+                        # Set viewport to a large size to capture full content
+                        page.set_viewport_size({"width": 1200, "height": 15000})
+                        # Take screenshot
+                        img_bytes = page.screenshot(full_page=True)
+
+                    # Download button image
+                    st.download_button(
+                        label="Download Image",
+                        data=img_bytes,
+                        file_name=html_file.name.rsplit('.')[0] + ".png",
+                        mime="image/png",
+                        key="image_download"
+                    )
+                    st.markdown("You will have to crop the image by hand for now, sorry :/")
+
+                    # Display image
+                    st.image(img_bytes, caption='Converted Image')
+
+                    # Delete temp file
+                    os.remove(tmp_html_path)
+                    st.success("Conversion complete.")
+                except Exception as e:
+                    st.error(f"Conversion failed: {e}")
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
