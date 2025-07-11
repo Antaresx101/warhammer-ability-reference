@@ -6,6 +6,7 @@ import re
 import time
 from html2image import Html2Image
 import tempfile
+from playwright.sync_api import sync_playwright
 
 
 def generate_html_report(categorized_abilities, original_filename, url_core, url):
