@@ -1150,50 +1150,50 @@ def main():
 
 
     # Right Column: HTML to Image Conversion Form
-    with col2:
-        with st.form(key="html_to_image_form"):
-            st.markdown("#### HTML to Image")
-            html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
-            st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
-            convert_button = st.form_submit_button("Convert to Image")
+        with col2:
+            with st.form(key="html_to_image_form"):
+                st.markdown("#### HTML to Image")
+                html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
+                st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
+                convert_button = st.form_submit_button("Convert to Image")
     
-        if convert_button and html_file is not None:
-            with st.spinner("Converting HTML to image..."):
-                try:
-                    # Temp file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
-                        tmp_html.write(html_file.read())
-                        tmp_html_path = tmp_html.name
+            if convert_button and html_file is not None:
+                with st.spinner("Converting HTML to image..."):
+                    try:
+                        # Temp file
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
+                            tmp_html.write(html_file.read())
+                            tmp_html_path = tmp_html.name
     
-                    # Playwright screenshot
-                    from playwright.sync_api import sync_playwright
-                    with sync_playwright() as p:
-                        browser = p.chromium.launch(headless=True)
-                        page = browser.new_page()
-                        page.goto(f"file://{tmp_html_path}")
-                        # Set viewport to a large size to capture full content
-                        page.set_viewport_size({"width": 1200, "height": 15000})
-                        # Take screenshot
-                        img_bytes = page.screenshot(full_page=True)
+                        # Playwright screenshot
+                        from playwright.sync_api import sync_playwright
+                        with sync_playwright() as p:
+                            browser = p.chromium.launch(headless=True)
+                            page = browser.new_page()
+                            page.goto(f"file://{tmp_html_path}")
+                            # Set viewport to a large size to capture full content
+                            page.set_viewport_size({"width": 1200, "height": 15000})
+                            # Take screenshot
+                            img_bytes = page.screenshot(full_page=True)
     
-                    # Download button image
-                    st.download_button(
-                        label="Download Image",
-                        data=img_bytes,
-                        file_name=html_file.name.rsplit('.')[0] + ".png",
-                        mime="image/png",
-                        key="image_download"
-                    )
-                    st.markdown("You will have to crop the image by hand for now, sorry :/")
+                        # Download button image
+                        st.download_button(
+                            label="Download Image",
+                            data=img_bytes,
+                            file_name=html_file.name.rsplit('.')[0] + ".png",
+                            mime="image/png",
+                            key="image_download"
+                        )
+                        st.markdown("You will have to crop the image by hand for now, sorry :/")
     
-                    # Display image
-                    st.image(img_bytes, caption='Converted Image')
+                        # Display image
+                        st.image(img_bytes, caption='Converted Image')
     
-                    # Delete temp file
-                    os.remove(tmp_html_path)
-                    st.success("Conversion complete.")
-                except Exception as e:
-                    st.error(f"Conversion failed: {e}")
+                        # Delete temp file
+                        os.remove(tmp_html_path)
+                        st.success("Conversion complete.")
+                    except Exception as e:
+                        st.error(f"Conversion failed: {e}")
 
 if __name__ == "__main__":
     main()
