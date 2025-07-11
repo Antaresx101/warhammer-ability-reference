@@ -4,9 +4,6 @@ import requests
 import json
 import re
 import time
-import tempfile
-import os
-from playwright.sync_api import sync_playwright
 
 
 def generate_html_report(categorized_abilities, original_filename, url_core, url):
@@ -1032,38 +1029,6 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-import streamlit as st
-from bs4 import BeautifulSoup
-import requests
-import json
-import re
-import time
-import tempfile
-import os
-from playwright.sync_api import sync_playwright
-
-def main():
-    st.markdown("""
-    <style>
-    /* Title Style */
-    h1 {
-        text-align: center;
-        color: #b0c4de;
-        font-size: 20px;
-        font-weight: bold;
-        margin-bottom: 15px;
-    }
-
-    /* Form Style */
-    .stForm {
-        border: 1px solid #2a4b5b;
-        border-radius: 5px;
-        padding: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     st.title("Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
@@ -1094,139 +1059,87 @@ def main():
     if 'run_ok' not in st.session_state:
         st.session_state.run_ok = True
 
-    col1, col2 = st.columns([2, 1])
 
-    # Left Column: Reference Form
-    with col1:
-        with st.form(key="input_form"):
-            st.markdown("#### Roster to WAR")
-            uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
+    # Input Form
+    with st.form(key="input_form"):
+        uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
-            abilities_input = st.text_area(
-                "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
-                height=75 )
+        abilities_input = st.text_area(
+            "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
+            height=75 )
 
-            url = st.text_input(
-                label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
-                placeholder="e.g., https://wahapedia.ru/wh40kXXed/factions/space-marines" )
+        url = st.text_input(
+            label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
+            placeholder="e.g., https://wahapedia.ru/wh40kXXed/factions/space-marines" )
 
-            core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
-            submit_button = st.form_submit_button("Process File")
+        core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
+        submit_button = st.form_submit_button("Process File")
 
-            if submit_button and uploaded_file is not None:
-                if abilities_input:
-                    st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
+        if submit_button and uploaded_file is not None:
+            if abilities_input:
+                st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
 
-                st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
-                st.session_state.url = url
+            st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
+            st.session_state.url = url
 
-                try:
-                    data = json.load(uploaded_file)
-                    abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
+            try:
+                data = json.load(uploaded_file)
+                abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
-                    stratagems, core_stratagems = [], []
-                    if detachment_name:
-                        detachment_name = detachment_name[0]
-                        st.subheader(f"Detachment: {detachment_name}")
+                stratagems, core_stratagems = [], []
+                if detachment_name:
+                    detachment_name = detachment_name[0]
+                    st.subheader(f"Detachment: {detachment_name}")
 
-                        if url:
-                            try:
-                                reading_status = st.empty()
-                                st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
-                                if not core_strategems_option:
-                                    reading_status.warning(f"Reading data from: {url}")
-                                else:
-                                    reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
+                    if url:
+                        try:
+                            reading_status = st.empty()
+                            st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+                            if not core_strategems_option:
+                                reading_status.warning(f"Reading data from: {url}")
+                            else:
+                                reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
 
-                                extract_stratagems_from_waha(stratagems, detachment_name, url)
-                                stratagems = [[x[0], x[1]] for x in stratagems if x]
+                            extract_stratagems_from_waha(stratagems, detachment_name, url)
+                            stratagems = [[x[0], x[1]] for x in stratagems if x]
 
-                                if stratagems:
-                                    reading_status.success("Detachment Stratagems were found and will be included.")
+                            if stratagems:
+                                reading_status.success("Detachment Stratagems were found and will be included.")
 
-                                    if core_strategems_option:
-                                        core_strategems_status = st.empty()
-                                        extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
-                                        core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
-                                        if core_stratagems:
-                                            core_strategems_status.success("Core Stratagems were found and will be included.")
-                                        else:
-                                            core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
-                                else:
-                                    reading_status.warning("Stratagems can’t be extracted from the provided URL.")
-                            except:
+                                if core_strategems_option:
+                                    core_strategems_status = st.empty()
+                                    extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
+                                    core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
+                                    if core_stratagems:
+                                        core_strategems_status.success("Core Stratagems were found and will be included.")
+                                    else:
+                                        core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
+                            else:
                                 reading_status.warning("Stratagems can’t be extracted from the provided URL.")
+                        except:
+                            reading_status.warning("Stratagems can’t be extracted from the provided URL.")
 
-                    with st.spinner("Processing JSON file..."):
-                        st.session_state.categorized = categorize_abilities(
-                            detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
-                        )
-                        st.session_state.html_report = generate_html_report(
-                            st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
-                        )
-                        st.success("Extraction from JSON file complete.")
-                except:
-                    st.error("Extraction unsuccessful or data format incompatible.")
-                    st.session_state.run_ok = False
-
-        # Download Button HTML
-        if st.session_state.html_report and st.session_state.run_ok:
-            st.download_button(
-                label="Download Reorderable HTML",
-                data=st.session_state.html_report,
-                file_name=f"{st.session_state.original_filename}_reordered.html",
-                mime="text/html",
-                key="download_button"
-            )
-
-    # Right Column: HTML to Image Conversion Form
-    with col2:
-        with st.form(key="html_to_image_form"):
-            st.markdown("#### HTML to Image")
-            html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
-            st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
-            convert_button = st.form_submit_button("Convert to Image")
-
-        if convert_button and html_file is not None:
-            with st.spinner("Converting HTML to image..."):
-                try:
-                    # Temp file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
-                        tmp_html.write(html_file.read())
-                        tmp_html_path = tmp_html.name
-
-                    # Use Playwright to take screenshot
-                    from playwright.sync_api import sync_playwright
-                    with sync_playwright() as p:
-                        browser = p.chromium.launch(headless=True)
-                        page = browser.new_page()
-                        page.goto(f"file://{tmp_html_path}")
-                        # Set viewport to a large size to capture full content
-                        page.set_viewport_size({"width": 1200, "height": 15000})
-                        # Take screenshot
-                        img_bytes = page.screenshot(full_page=True)
-
-                    # Download button image
-                    st.download_button(
-                        label="Download Image",
-                        data=img_bytes,
-                        file_name=html_file.name.rsplit('.')[0] + ".png",
-                        mime="image/png",
-                        key="image_download"
+                with st.spinner("Processing JSON file..."):
+                    st.session_state.categorized = categorize_abilities(
+                        detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
                     )
-                    st.markdown("You will have to crop the image by hand for now, sorry :/")
+                    st.session_state.html_report = generate_html_report(
+                        st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
+                    )
+                    st.success("Extraction from JSON file complete.")
+            except:
+                st.error("Extraction unsuccessful or data format incompatible.")
+                st.session_state.run_ok = False
 
-                    # Display image
-                    st.image(img_bytes, caption='Converted Image')
-
-                    # Delete temp file
-                    os.remove(tmp_html_path)
-                    st.success("Conversion complete.")
-                except Exception as e:
-                    st.error(f"Conversion failed: {e}")
-
-if __name__ == "__main__":
-    main()
+    # Download Button
+    if st.session_state.html_report and st.session_state.run_ok:
+        st.download_button(
+            label="Download Reorderable HTML",
+            data=st.session_state.html_report,
+            file_name=f"{st.session_state.original_filename}_reordered.html",
+            mime="text/html",
+            key="download_button"
+        )
 
 if __name__ == "__main__":
     main()
