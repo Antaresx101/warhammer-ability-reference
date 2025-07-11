@@ -4,6 +4,8 @@ import requests
 import json
 import re
 import time
+from html2image import Html2Image
+import tempfile
 
 
 def generate_html_report(categorized_abilities, original_filename, url_core, url):
@@ -1060,86 +1062,136 @@ def main():
         st.session_state.run_ok = True
 
 
-    # Input Form
-    with st.form(key="input_form"):
-        uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
+    col1, col2 = st.columns([2, 1])
 
-        abilities_input = st.text_area(
-            "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
-            height=75 )
+    # Left Column: Reference Form
+    with col1:
+        with st.form(key="input_form"):
+            st.markdown("#### Roster to WAR")
+            uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
 
-        url = st.text_input(
-            label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
-            placeholder="e.g., https://wahapedia.ru/wh40kXXed/factions/space-marines" )
+            abilities_input = st.text_area(
+                "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
+                height=75 )
 
-        core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
-        submit_button = st.form_submit_button("Process File")
+            url = st.text_input(
+                label="Enter Wahapedia Main-Faction URL for Stratagem Support:",
+                placeholder="e.g., https://wahapedia.ru/wh40kXXed/factions/space-marines" )
 
-        if submit_button and uploaded_file is not None:
-            if abilities_input:
-                st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
+            core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
+            submit_button = st.form_submit_button("Process File")
 
-            st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
-            st.session_state.url = url
+            if submit_button and uploaded_file is not None:
+                if abilities_input:
+                    st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
 
-            try:
-                data = json.load(uploaded_file)
-                abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
+                st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
+                st.session_state.url = url
 
-                stratagems, core_stratagems = [], []
-                if detachment_name:
-                    detachment_name = detachment_name[0]
-                    st.subheader(f"Detachment: {detachment_name}")
+                try:
+                    data = json.load(uploaded_file)
+                    abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
-                    if url:
-                        try:
-                            reading_status = st.empty()
-                            st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
-                            if not core_strategems_option:
-                                reading_status.warning(f"Reading data from: {url}")
-                            else:
-                                reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
+                    stratagems, core_stratagems = [], []
+                    if detachment_name:
+                        detachment_name = detachment_name[0]
+                        st.subheader(f"Detachment: {detachment_name}")
 
-                            extract_stratagems_from_waha(stratagems, detachment_name, url)
-                            stratagems = [[x[0], x[1]] for x in stratagems if x]
+                        if url:
+                            try:
+                                reading_status = st.empty()
+                                st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+                                if not core_strategems_option:
+                                    reading_status.warning(f"Reading data from: {url}")
+                                else:
+                                    reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
 
-                            if stratagems:
-                                reading_status.success("Detachment Stratagems were found and will be included.")
+                                extract_stratagems_from_waha(stratagems, detachment_name, url)
+                                stratagems = [[x[0], x[1]] for x in stratagems if x]
 
-                                if core_strategems_option:
-                                    core_strategems_status = st.empty()
-                                    extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
-                                    core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
-                                    if core_stratagems:
-                                        core_strategems_status.success("Core Stratagems were found and will be included.")
-                                    else:
-                                        core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
-                            else:
+                                if stratagems:
+                                    reading_status.success("Detachment Stratagems were found and will be included.")
+
+                                    if core_strategems_option:
+                                        core_strategems_status = st.empty()
+                                        extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
+                                        core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
+                                        if core_stratagems:
+                                            core_strategems_status.success("Core Stratagems were found and will be included.")
+                                        else:
+                                            core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
+                                else:
+                                    reading_status.warning("Stratagems can’t be extracted from the provided URL.")
+                            except:
                                 reading_status.warning("Stratagems can’t be extracted from the provided URL.")
-                        except:
-                            reading_status.warning("Stratagems can’t be extracted from the provided URL.")
 
-                with st.spinner("Processing JSON file..."):
-                    st.session_state.categorized = categorize_abilities(
-                        detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
-                    )
-                    st.session_state.html_report = generate_html_report(
-                        st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
-                    )
-                    st.success("Extraction from JSON file complete.")
-            except:
-                st.error("Extraction unsuccessful or data format incompatible.")
-                st.session_state.run_ok = False
+                    with st.spinner("Processing JSON file..."):
+                        st.session_state.categorized = categorize_abilities(
+                            detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
+                        )
+                        st.session_state.html_report = generate_html_report(
+                            st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
+                        )
+                        st.success("Extraction from JSON file complete.")
+                except:
+                    st.error("Extraction unsuccessful or data format incompatible.")
+                    st.session_state.run_ok = False
 
-    # Download Button
-    if st.session_state.html_report and st.session_state.run_ok:
-        st.download_button(
-            label="Download Reorderable HTML",
-            data=st.session_state.html_report,
-            file_name=f"{st.session_state.original_filename}_reordered.html",
-            mime="text/html",
-            key="download_button"
-        )
+        # Download Button HTML
+        if st.session_state.html_report and st.session_state.run_ok:
+            st.download_button(
+                label="Download Reorderable HTML",
+                data=st.session_state.html_report,
+                file_name=f"{st.session_state.original_filename}_reordered.html",
+                mime="text/html",
+                key="download_button"
+            )
+
+
+    # Right Column: HTML to Image Conversion Form
+    with col2:
+        with st.form(key="html_to_image_form"):
+            st.markdown("#### HTML to Image")
+            html_file = st.file_uploader("Upload HTML File", type=['html', 'htm'], key="html_upload")
+            st.markdown("You can use this tool to convert a .HTML to .PNG for easier viewing or to load it onto an object in TTS.")
+            convert_button = st.form_submit_button("Convert to Image")
+
+        if convert_button and html_file is not None:
+            with st.spinner("Converting HTML to image..."):
+                try:
+                    # Temp file
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
+                        tmp_html.write(html_file.read())
+                        tmp_html_path = tmp_html.name
+
+                    # Temp dir
+                    output_name = "tmp.png"
+
+                    # Convert HTML to image
+                    hti = Html2Image()
+                    hti.screenshot(html_file=tmp_html_path, save_as=output_name, size=(1200, 15000))
+
+                    with open(output_name, "rb") as img_file:
+                        img_bytes = img_file.read()
+
+
+                    # Download button image
+                    st.download_button(
+                        label="Download Image",
+                        data=img_bytes,
+                        file_name=html_file.name.rsplit('.')[0]+".png",
+                        mime="image/png",
+                        key="image_download"
+                    )
+                    st.markdown("You will have to crop the image by hand for now, sorry :/")
+
+                    # Display image
+                    st.image(img_bytes, caption='Converted Image')
+
+                    # Delete temp files
+                    st.success("Conversion complete.")
+                except Exception as e:
+                    st.error(f"Conversion failed: {e}")
 
 if __name__ == "__main__":
     main()
