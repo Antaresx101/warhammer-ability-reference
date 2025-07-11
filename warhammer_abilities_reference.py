@@ -1164,22 +1164,20 @@ def main():
                         tmp_html.write(html_file.read())
                         tmp_html_path = tmp_html.name
 
-                    # Temp dir
                     output_name = "tmp.png"
 
-                    # Convert HTML to image
-                    hti = Html2Image()
+                    # Convert HTML to image with wkhtmltoimage
+                    hti = Html2Image(output_path=tempfile.gettempdir(), wkhtmltoimage='/usr/bin/wkhtmltoimage')
                     hti.screenshot(html_file=tmp_html_path, save_as=output_name, size=(1200, 15000))
 
                     with open(output_name, "rb") as img_file:
                         img_bytes = img_file.read()
 
-
                     # Download button image
                     st.download_button(
                         label="Download Image",
                         data=img_bytes,
-                        file_name=html_file.name.rsplit('.')[0]+".png",
+                        file_name=html_file.name.rsplit('.')[0] + ".png",
                         mime="image/png",
                         key="image_download"
                     )
@@ -1188,7 +1186,6 @@ def main():
                     # Display image
                     st.image(img_bytes, caption='Converted Image')
 
-                    # Delete temp files
                     st.success("Conversion complete.")
                 except Exception as e:
                     st.error(f"Conversion failed: {e}")
