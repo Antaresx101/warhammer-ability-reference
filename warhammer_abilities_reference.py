@@ -4,7 +4,9 @@ import requests
 import json
 import re
 import time
-
+from weasyprint import HTML
+from PIL import Image
+import io
 
 def generate_html_report(categorized_abilities, original_filename, url_core, url):
     timestamp = str(int(time.time()))
@@ -747,9 +749,9 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
                 abilityDiv.innerHTML = `
                     <button class="duplicate-btn" title="Duplicate ability">📑</button>
                     <button class="delete-btn" title="Remove ability">✕</button>
-                    <div class="unit-name">${{unit}}</div>
-                    <div class="ability-name">${{name}}</div>
-                    <div class="ability-desc">${{desc.replace(/\\n/g, "<br>")}}</div>
+                    <div class="unit-name">${unit}</div>
+                    <div class="ability-name">${name}</div>
+                    <div class="ability-desc">${desc.replace(/\n/g, "<br>")}</div>
                 `;
 
                 abilityDiv.setAttribute("draggable", "true");
@@ -880,7 +882,6 @@ def extract_abilities_from_json(json_data):
 
     return abilities, detachment_abilities, detachment_name
 
-
 def extract_stratagems_from_waha(stratagems, detachment_name, url):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -936,8 +937,6 @@ def extract_stratagems_from_waha(stratagems, detachment_name, url):
 
             if section.strip() != "": temp.append(section.replace(".",".\n"))
 
-
-
 def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abilities, exclude_abilities):
     phases = {
         "DEPLOYMENT / RESERVES": [],
@@ -957,7 +956,8 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
         "MOVEMENT PHASE": [" moves", " a move", "normal move", " fallback", " fall back", " advance ", " move phase", " movement phase", " deepstrike", " deep strike"],
         "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
         "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
-        "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]}
+        "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]
+    }
 
     priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "until the end of", "until the start of", "end of"]
     priority_center = len(priority_order) // 2
@@ -983,7 +983,7 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
 
         for phase, keywords in phase_keywords.items():
             if found and phase == "ANY PHASE": break
-            if any( keyword in desc_lower for keyword in keywords):
+            if any(keyword in desc_lower for keyword in keywords):
                 phases[phase].append((ability, description))
                 found = True
 
@@ -1000,12 +1000,23 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
             else: renamed_abilities[ability] = [ability, description]
 
         renamed_abilities = list(renamed_abilities.values())
-        renamed_abilities.sort(key=lambda x : x[0].split(":")[1].strip())
+        renamed_abilities.sort(key=lambda x: x[0].split(":")[1].strip())
         renamed_abilities.sort(key=priority_sort_key)
         phases[phase] = renamed_abilities
 
     return phases
 
+def convert_html_to_image(html_content, output_filename):
+    try:
+        html = HTML(string=html_content)
+        img_data = html.write_png()
+        img = Image.open(io.BytesIO(img_data))
+        output_buffer = io.BytesIO()
+        img.save(output_buffer, format="PNG")
+        return output_buffer.getvalue(), f"{output_filename}.png"
+    except Exception as e:
+        st.error(f"Failed to convert HTML to image: {str(e)}")
+        return None, None
 
 def main():
     st.markdown("""
@@ -1035,10 +1046,11 @@ def main():
     
     1. Export your roster in New Recruit with Export -> JSON
     2. Upload the resulting listname.json here
-    2. The App will extract and order all unit-abilities (if applicable)
-    3. Download the reorderable HTML file and open it in a browser
-    4. Reorder by drag & drop and modify as you wish
-    5. Redownload your modified HTML file
+    3. The App will extract and order all unit-abilities (if applicable)
+    4. Download the reorderable HTML file and open it in a browser
+    5. Reorder by drag & drop and modify as you wish
+    6. Redownload your modified HTML file
+    7. Optionally, upload the HTML file to convert it to an image
     """)
 
     # Session States
@@ -1058,11 +1070,18 @@ def main():
         st.session_state.url_core = None
     if 'run_ok' not in st.session_state:
         st.session_state.run_ok = True
-
+    if 'image_data' not in st.session_state:
+        st.session_state.image_data = None
+    if 'image_filename' not in st.session_state:
+        st.session_state.image_filename = None
 
     # Input Form
     with st.form(key="input_form"):
-        uploaded_file = st.file_uploader("Upload New Recruit JSON File", type=['json'])
+        col1, col2 = st.columns(2)
+        with col1:
+            uploaded_json = st.file_uploader("Upload New Recruit JSON File", type=['json'])
+        with col2:
+            uploaded_html = st.file_uploader("Upload HTML File for Image Conversion", type=['html'])
 
         abilities_input = st.text_area(
             "Enter abilities or stratagems to exclude (one per line, e.g. Invulnuverable Save)",
@@ -1075,63 +1094,80 @@ def main():
         core_strategems_option = st.checkbox("Include Core Stratagems aswell?", value=False)
         submit_button = st.form_submit_button("Process File")
 
-        if submit_button and uploaded_file is not None:
-            if abilities_input:
-                st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
+        if submit_button and (uploaded_json is not None or uploaded_html is not None):
+            # Process JSON file
+            if uploaded_json is not None:
+                if abilities_input:
+                    st.session_state.exclude_abilities = [x.strip() for x in abilities_input.split("\n") if x.strip() != ""]
 
-            st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
-            st.session_state.url = url
+                st.session_state.original_filename = uploaded_json.name.rsplit('.')[0]
+                st.session_state.url = url
 
-            try:
-                data = json.load(uploaded_file)
-                abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
+                try:
+                    data = json.load(uploaded_json)
+                    abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
-                stratagems, core_stratagems = [], []
-                if detachment_name:
-                    detachment_name = detachment_name[0]
-                    st.subheader(f"Detachment: {detachment_name}")
+                    stratagems, core_stratagems = [], []
+                    if detachment_name:
+                        detachment_name = detachment_name[0]
+                        st.subheader(f"Detachment: {detachment_name}")
 
-                    if url:
-                        try:
-                            reading_status = st.empty()
-                            st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
-                            if not core_strategems_option:
-                                reading_status.warning(f"Reading data from: {url}")
-                            else:
-                                reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
+                        if url:
+                            try:
+                                reading_status = st.empty()
+                                st.session_state.url_core = "/".join(url.split("/")[:4]) + "/the-rules/core-rules/"
+                                if not core_strategems_option:
+                                    reading_status.warning(f"Reading data from: {url}")
+                                else:
+                                    reading_status.warning(f"Reading data from: {url} and {st.session_state.url_core}")
 
-                            extract_stratagems_from_waha(stratagems, detachment_name, url)
-                            stratagems = [[x[0], x[1]] for x in stratagems if x]
+                                extract_stratagems_from_waha(stratagems, detachment_name, url)
+                                stratagems = [[x[0], x[1]] for x in stratagems if x]
 
-                            if stratagems:
-                                reading_status.success("Detachment Stratagems were found and will be included.")
+                                if stratagems:
+                                    reading_status.success("Detachment Stratagems were found and will be included.")
 
-                                if core_strategems_option:
-                                    core_strategems_status = st.empty()
-                                    extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
-                                    core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
-                                    if core_stratagems:
-                                        core_strategems_status.success("Core Stratagems were found and will be included.")
-                                    else:
-                                        core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
-                            else:
+                                    if core_strategems_option:
+                                        core_strategems_status = st.empty()
+                                        extract_stratagems_from_waha(core_stratagems, "Stratagem", st.session_state.url_core)
+                                        core_stratagems = [[x[0], x[1]] for x in core_stratagems if x]
+                                        if core_stratagems:
+                                            core_strategems_status.success("Core Stratagems were found and will be included.")
+                                        else:
+                                            core_strategems_status.warning("Core Stratagems can’t be and will not be included.")
+                                else:
+                                    reading_status.warning("Stratagems can’t be extracted from the provided spicified URL.")
+                            except:
                                 reading_status.warning("Stratagems can’t be extracted from the provided URL.")
-                        except:
-                            reading_status.warning("Stratagems can’t be extracted from the provided URL.")
 
-                with st.spinner("Processing JSON file..."):
-                    st.session_state.categorized = categorize_abilities(
-                        detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
-                    )
-                    st.session_state.html_report = generate_html_report(
-                        st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
-                    )
-                    st.success("Extraction from JSON file complete.")
-            except:
-                st.error("Extraction unsuccessful or data format incompatible.")
-                st.session_state.run_ok = False
+                    with st.spinner("Processing JSON file..."):
+                        st.session_state.categorized = categorize_abilities(
+                            detachment_abilities, core_stratagems, stratagems, abilities, st.session_state.exclude_abilities
+                        )
+                        st.session_state.html_report = generate_html_report(
+                            st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
+                        )
+                        st.success("Extraction from JSON file complete.")
+                except:
+                    st.error("Extraction unsuccessful or data format incompatible.")
+                    st.session_state.run_ok = False
 
-    # Download Button
+            # Process HTML file for image conversion
+            if uploaded_html is not None:
+                try:
+                    with st.spinner("Converting HTML to image..."):
+                        html_content = uploaded_html.read().decode('utf-8')
+                        output_filename = uploaded_html.name.rsplit('.')[0]
+                        st.session_state.image_data, st.session_state.image_filename = convert_html_to_image(html_content, output_filename)
+                        if st.session_state.image_data:
+                            st.success("HTML to image conversion complete.")
+                        else:
+                            st.session_state.run_ok = False
+                except:
+                    st.error("Failed to process HTML file for image conversion.")
+                    st.session_state.run_ok = False
+
+    # Download Buttons
     if st.session_state.html_report and st.session_state.run_ok:
         st.download_button(
             label="Download Reorderable HTML",
@@ -1139,6 +1175,15 @@ def main():
             file_name=f"{st.session_state.original_filename}_reordered.html",
             mime="text/html",
             key="download_button"
+        )
+
+    if st.session_state.image_data and st.session_state.run_ok:
+        st.download_button(
+            label="Download Image",
+            data=st.session_state.image_data,
+            file_name=st.session_state.image_filename,
+            mime="image/png",
+            key="image_download_button"
         )
 
 if __name__ == "__main__":
