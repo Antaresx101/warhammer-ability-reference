@@ -853,16 +853,17 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             ability_name = ability.split(":")[1].strip()
             description_bolded = bold_flagged_text(description)
             class_attr = 'ability'
-            if any(x in description.lower() for x in ("each time an enemy unit",
-                                                      "in your opponents", "in your opponent´s",
-                                                      "end of your opponents", "end of your opponent´s",
-                                                      "start of your opponents", "start of your opponent´s"
+            description_lower = description.lower().replace("´","").replace("'","").strip()
+            if any(x in description_lower for x in ("each time an enemy unit",
+                                                      "in your opponents",
+                                                      "end of your opponents",
+                                                      "start of your opponents",
                                                       "model is destroyed,",
-                                                      "your opponent´s command phase",
-                                                      "your opponent´s movement phase",
-                                                      "your opponent´s shooting phase",
-                                                      "your opponent´s charge phase",
-                                                      "your opponent´s fight phase",
+                                                      "your opponents command",
+                                                      "your opponents movement",
+                                                      "your opponents shooting",
+                                                      "your opponents charge",
+                                                      "your opponents fight",
                                                       "after an enemy unit has",)):
                 class_attr += ' enemy'
             phase_html += f'<div class="{class_attr}" id="ability-{phase.lower().replace(" / ","-").replace(" ","-")}-{idx}">\n'
@@ -1028,13 +1029,13 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
     }
 
     phase_keywords = {
-        "FIGHT PHASE":    [[" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"], []],
+        "FIGHT PHASE":    [[" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"], ["fire overwatch"]],
         "CHARGE PHASE":   [[" charge phase", " charge roll", " charge move"], []],
-        "SHOOTING PHASE": [[" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons", "stealth"], []],
+        "SHOOTING PHASE": [[" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons", "stealth"], ["fire overwatch"]],
         "MOVEMENT PHASE": [[" moves", " a move", "normal move", " fallback", " fall back", " advance ", " move phase", " movement phase", " deepstrike", " deep strike"], ["as if it were your movement phase"]],
-        "COMMAND PHASE":  [[" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"], []],
-        "ANY PHASE":      [[" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"], []],
-        "DEPLOYMENT / RESERVES": [[" reserves", " declare battle formations", " scouts", " infiltrators"], []]}
+        "COMMAND PHASE":  [[" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"], ["fire overwatch"]],
+        "ANY PHASE":      [[" any phase", "any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"], ["fire overwatch"]],
+        "DEPLOYMENT / RESERVES": [[" reserves", " declare battle formations", " scouts", " infiltrators"], ["fire overwatch"]]}
 
     priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "until the end of", "until the start of", "end of"]
     priority_center = len(priority_order) // 2
@@ -1053,7 +1054,7 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
         if len(parts) < 2 or parts[1].lower().strip() in exclude_abilities:
             continue
 
-        desc_lower = re.sub(r'\s+', ' ', description).strip().lower()
+        desc_lower = re.sub(r'\s+', ' ', description).strip().lower().replace("´","").replace("'","")
         description = description.replace("^^", "")
         description = re.sub(r"\b([A-Z]{2,})\b", r"**\1**", description)
         found = False
@@ -1159,7 +1160,7 @@ def main():
             st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
             st.session_state.url = url
 
-            if True:
+            try:
                 data = json.load(uploaded_file)
                 abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
@@ -1204,7 +1205,7 @@ def main():
                         st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
                     )
                     st.success("Extraction from JSON file complete.")
-            else:
+            except:
                 st.error("Extraction unsuccessful or data format incompatible.")
                 st.session_state.run_ok = False
 
