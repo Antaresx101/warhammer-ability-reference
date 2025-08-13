@@ -44,6 +44,11 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             border-left: 4px solid rgb(70, 130, 180);
         }}
         
+        body.dark-mode .ability.enemy {{
+            background-color: rgb(60, 40, 40);
+            border-left: 4px solid rgb(180, 70, 70);
+        }}
+        
         body.dark-mode .unit-name {{
             color: rgb(180, 180, 255);
         }}
@@ -266,6 +271,11 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             overflow-wrap: break-word;
         }}
         
+        .ability.enemy {{
+            background-color: rgb(250, 230, 230);
+            border-left: 4px solid rgb(200, 80, 80);
+        }}
+        
         .unit-name {{
             font-weight: bold;
             color: rgb(25, 25, 103);
@@ -326,6 +336,10 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
         
         body.dark-mode .ability:hover {{
             background-color: rgb(60, 60, 70);
+        }}
+        
+        body.dark-mode .ability.enemy:hover {{
+            background-color: rgb(70, 50, 50);
         }}
         
         .ability.dragging {{
@@ -411,6 +425,35 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             opacity: 1;
         }}
 
+        .color-btn {{
+            position: absolute;
+            top: 5px;
+            right: 65px;
+            background: none;
+            border: none;
+            color: rgb(150, 150, 200);
+            cursor: pointer;
+            font-size: 18px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+        }}
+
+        .color-btn:hover {{
+            color: white;
+            background-color: rgb(0, 150, 0);
+        }}
+
+        .ability:hover .color-btn {{
+            opacity: 1;
+        }}
+
         .button-container {{
             display: flex;
             gap: 10px;
@@ -429,8 +472,9 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             gap: 20px;
             margin-left: 10px;
             vertical-align: middle;
+        }}
 
-
+        
         @media (max-width: 600px) {{
             #custom-entry-container {{
                 flex-direction: column;
@@ -504,7 +548,7 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             .ability-desc {{
                 color: rgb(0, 0, 0);
             }}
-            #save-button, #toggle-entry-btn, #dark-mode-toggle, .delete-btn, .duplicate-btn {{ 
+            #save-button, #toggle-entry-btn, #dark-mode-toggle, .delete-btn, .duplicate-btn, .color-btn {{ 
                 display: none; 
             }}
         }}
@@ -637,7 +681,22 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
                 }});
                 clone.querySelector('.delete-btn').addEventListener('click', handleDeleteClick);
                 clone.querySelector('.duplicate-btn').addEventListener('click', handleDuplicateClick);
+                clone.querySelector('.color-btn').addEventListener('click', handleColorClick);
                 ability.after(clone);
+            }}
+
+            // Color change functionality
+            function setupColorButtons() {{
+                document.querySelectorAll('.color-btn').forEach(btn => {{
+                    btn.removeEventListener('click', handleColorClick);
+                    btn.addEventListener('click', handleColorClick);
+                }});
+            }}
+
+            function handleColorClick(e) {{
+                e.stopPropagation();
+                const ability = e.target.closest('.ability');
+                ability.classList.toggle('enemy');
             }}
 
             // Drag-and-drop setup
@@ -661,12 +720,10 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             function handleDragStart(e) {{
                 dragged = e.target;
                 e.target.classList.add("dragging");
-                console.log('Dragging ability:', e.target.id); // Debug log
             }}
 
             function handleDragEnd(e) {{
                 e.target.classList.remove("dragging");
-                console.log('Dropped ability:', e.target.id); // Debug log
             }}
 
             function handleDragOver(e) {{
@@ -682,6 +739,7 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             document.addEventListener("DOMContentLoaded", () => {{
                 setupDeleteButtons();
                 setupDuplicateButtons();
+                setupColorButtons();
                 setupDragAndDrop();
                 
                 document.getElementById("save-button").addEventListener("click", () => {{
@@ -743,8 +801,12 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
 
                 const abilityDiv = document.createElement("div");
                 abilityDiv.className = "ability";
+                if (desc.toLowerCase().includes('enemy')) {{
+                    abilityDiv.classList.add('enemy');
+                }}
                 abilityDiv.id = 'ability-' + Math.random().toString(36).substr(2, 9);
                 abilityDiv.innerHTML = `
+                    <button class="color-btn" title="Toggle color">🎨</button>
                     <button class="duplicate-btn" title="Duplicate ability">📑</button>
                     <button class="delete-btn" title="Remove ability">✕</button>
                     <div class="unit-name">${{unit}}</div>
@@ -758,6 +820,7 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
 
                 abilityDiv.querySelector('.delete-btn').addEventListener('click', handleDeleteClick);
                 abilityDiv.querySelector('.duplicate-btn').addEventListener('click', handleDuplicateClick);
+                abilityDiv.querySelector('.color-btn').addEventListener('click', handleColorClick);
 
                 const section = [...document.querySelectorAll(".phase-section")].find(s =>
                     s.querySelector("h2")?.innerText === phase
@@ -789,7 +852,21 @@ def generate_html_report(categorized_abilities, original_filename, url_core, url
             unit_name = ability.split(":")[0].strip()
             ability_name = ability.split(":")[1].strip()
             description_bolded = bold_flagged_text(description)
-            phase_html += f'<div class="ability" id="ability-{phase.lower().replace(" / ","-").replace(" ","-")}-{idx}">\n'
+            class_attr = 'ability'
+            if any(x in description.lower() for x in ("each time an enemy unit",
+                                                      "in your opponents", "in your opponent´s",
+                                                      "end of your opponents", "end of your opponent´s",
+                                                      "start of your opponents", "start of your opponent´s"
+                                                      "model is destroyed,",
+                                                      "your opponent´s command phase",
+                                                      "your opponent´s movement phase",
+                                                      "your opponent´s shooting phase",
+                                                      "your opponent´s charge phase",
+                                                      "your opponent´s fight phase",
+                                                      "after an enemy unit has",)):
+                class_attr += ' enemy'
+            phase_html += f'<div class="{class_attr}" id="ability-{phase.lower().replace(" / ","-").replace(" ","-")}-{idx}">\n'
+            phase_html += f'<button class="color-btn" title="Toggle color">🎨</button>\n'
             phase_html += f'<button class="duplicate-btn" title="Duplicate ability">📑</button>\n'
             phase_html += f'<button class="delete-btn" title="Remove ability">✕</button>\n'
             phase_html += f'<div class="unit-name">{unit_name}</div>\n'
@@ -951,13 +1028,13 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
     }
 
     phase_keywords = {
-        "FIGHT PHASE":    [" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"],
-        "CHARGE PHASE":   [" charge phase", " charge roll", " charge move"],
-        "SHOOTING PHASE": [" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons"],
-        "MOVEMENT PHASE": [" moves", " a move", "normal move", " fallback", " fall back", " advance ", " move phase", " movement phase", " deepstrike", " deep strike"],
-        "COMMAND PHASE":  [" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"],
-        "ANY PHASE":      [" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"],
-        "DEPLOYMENT / RESERVES": [" reserves", " declare battle formations", " scouts", " infiltrators"]}
+        "FIGHT PHASE":    [[" fight", " fights", " fight phase", " weapon skill", " melee attack", " melee attacks", " melee weapon", " melee weapons", " end of your opponents turn"], []],
+        "CHARGE PHASE":   [[" charge phase", " charge roll", " charge move"], []],
+        "SHOOTING PHASE": [[" shoot", " shooting phase", " ranged attack", " ranged attacks", " ranged weapon", " ranged weapons", "stealth"], []],
+        "MOVEMENT PHASE": [[" moves", " a move", "normal move", " fallback", " fall back", " advance ", " move phase", " movement phase", " deepstrike", " deep strike"], ["as if it were your movement phase"]],
+        "COMMAND PHASE":  [[" start of your turn", " start of any turn", " start of the battleround", " start of your opponents turn", " command phase", " order", " battle-shock step", " battleshock step"], []],
+        "ANY PHASE":      [[" any phase", "each time", " each time", "battle shock", "battle-shock", " attack", " attacks", " weapon", " weapons", " stratagem"], []],
+        "DEPLOYMENT / RESERVES": [[" reserves", " declare battle formations", " scouts", " infiltrators"], []]}
 
     priority_order = ["start of", "declare battle formations", "infiltrators", "scouts", "after this", "until the end of", "until the start of", "end of"]
     priority_center = len(priority_order) // 2
@@ -981,11 +1058,11 @@ def categorize_abilities(detachment_abilities, core_stratagems, stratagems, abil
         description = re.sub(r"\b([A-Z]{2,})\b", r"**\1**", description)
         found = False
 
-        for phase, keywords in phase_keywords.items():
+        for phase, (keywords, exclusions) in phase_keywords.items():
             if found and phase == "ANY PHASE": break
-            if any( keyword in desc_lower for keyword in keywords):
-                phases[phase].append((ability, description))
-                found = True
+            if any( keyword in desc_lower for keyword in keywords) and not any( exclus in desc_lower for exclus in exclusions):
+                    phases[phase].append((ability, description))
+                    found = True
 
         if not found: phases["OTHER"].append((ability, description))
 
@@ -1082,7 +1159,7 @@ def main():
             st.session_state.original_filename = uploaded_file.name.rsplit('.')[0]
             st.session_state.url = url
 
-            try:
+            if True:
                 data = json.load(uploaded_file)
                 abilities, detachment_abilities, detachment_name = extract_abilities_from_json(data)
 
@@ -1127,7 +1204,7 @@ def main():
                         st.session_state.categorized, st.session_state.original_filename, st.session_state.url_core, st.session_state.url
                     )
                     st.success("Extraction from JSON file complete.")
-            except:
+            else:
                 st.error("Extraction unsuccessful or data format incompatible.")
                 st.session_state.run_ok = False
 
