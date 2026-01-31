@@ -1107,6 +1107,8 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
+    st.warning("⚠️ **This application is deprecated but still supported.** You can use the vastly improved v2.0+ (https://github.com/Antaresx101/WAR_40k) for the latest features and improvements.")
+    
     st.title("Warhammer 40k Ability Reference")
     st.markdown("""
     This App creates an ability reference from a New Recruit roster that can be viewed and reordered via HTML in any browser on desktop or mobile.
@@ -1221,3 +1223,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
